@@ -36,10 +36,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-background flex">
 
       {/* ── Desktop Sidebar ─────────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-[240px] fixed h-full z-40 border-r border-white/[0.05] overflow-hidden">
-        {/* Sidebar background with gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0f] via-[#080810] to-[#060609]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,168,76,0.06)_0%,transparent_60%)]" />
+      <aside className="hidden md:flex flex-col w-[240px] fixed h-full z-40 border-r border-border overflow-hidden bg-card">
 
         <div className="relative z-10 flex flex-col h-full p-4">
           {/* Logo */}
@@ -48,20 +45,17 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           </div>
 
           {/* User card */}
-          <Link to="/profile" className="group mb-6 mx-1">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-white/[0.05] transition-all duration-300"
-            >
+          <Link to="/profile" className="group mb-5">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-secondary transition-colors">
               <div className="relative flex-shrink-0">
-                <div className="w-10 h-10 rounded-xl gold-gradient-bg flex items-center justify-center text-primary-foreground text-sm font-bold overflow-hidden">
+                <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-foreground text-sm font-semibold overflow-hidden">
                   {user?.photoUrl
                     ? <img src={user.photoUrl} className="w-full h-full object-cover" alt="" />
                     : user?.name?.[0] || 'U'
                   }
                 </div>
                 {user?.cardStatus === 'active' && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-background" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-background" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -69,31 +63,26 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 <p className="text-[11px] text-muted-foreground truncate">{user?.designation || 'Member'}</p>
               </div>
               {user?.tier === 'founder' && (
-                <div className="flex-shrink-0 w-5 h-5 rounded-full gold-gradient-bg flex items-center justify-center">
-                  <Zap className="w-3 h-3 text-primary-foreground" />
-                </div>
+                <span className="gold-pill text-[9px] flex-shrink-0">Pro</span>
               )}
-            </motion.div>
+            </div>
           </Link>
 
           {/* FK Score mini */}
-          <div className="mx-1 mb-5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04]">
+          <div className="mb-5 p-3 rounded-xl bg-muted/40 border border-border">
             <div className="flex items-center justify-between mb-2">
               <span className="section-label">FK Score</span>
-              <span className="font-display text-lg font-bold gold-gradient-text">{user?.fkScore || 87}</span>
+              <span className="text-sm font-semibold text-foreground">{user?.fkScore || 87}</span>
             </div>
             <div className="progress-track">
               <motion.div
                 className="progress-fill"
                 initial={{ width: 0 }}
                 animate={{ width: `${user?.fkScore || 87}%` }}
-                transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+                transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
               />
             </div>
-            <div className="flex justify-between mt-1.5">
-              <span className="text-[10px] text-muted-foreground">{user?.connectionsCount || 0} connections</span>
-              <span className="text-[10px] text-primary">Gold Tier</span>
-            </div>
+            <p className="text-[10px] text-muted-foreground mt-1.5">Gold tier · {user?.connectionsCount || 0} connections</p>
           </div>
 
           {/* Nav */}
