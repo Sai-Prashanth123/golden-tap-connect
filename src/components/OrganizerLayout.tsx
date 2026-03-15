@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { useAppStore } from '@/store/appStore';
 import {
@@ -8,13 +8,16 @@ import {
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/organizer/dashboard' },
-  { label: 'Events', icon: Calendar, path: '/organizer/events' },
+  { label: 'Create Event', icon: Calendar, path: '/organizer/events/create' },
+  { label: 'Attendees', icon: Users, path: '/organizer/attendees' },
   { label: 'Leads', icon: Download, path: '/organizer/leads' },
 ];
 
 export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const logout = useAppStore((s) => s.logout);
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -31,7 +34,7 @@ export const OrganizerLayout = ({ children }: { children: ReactNode }) => {
             );
           })}
         </nav>
-        <button onClick={logout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full">
+        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full">
           <LogOut className="w-4 h-4" /> Sign out
         </button>
       </aside>

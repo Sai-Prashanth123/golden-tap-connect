@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { useAppStore } from '@/store/appStore';
 import {
@@ -19,8 +19,10 @@ const navItems = [
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -53,7 +55,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <Link to="/notifications" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50">
             <Bell className="w-4 h-4" /> Notifications
           </Link>
-          <button onClick={() => { logout(); }} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full">
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>
