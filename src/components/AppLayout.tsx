@@ -90,12 +90,26 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             {navItems.map((item, i) => {
               const active = location.pathname === item.path;
               return (
-                <motion.div key={item.path} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 + i * 0.04 }}>
+                <motion.div
+                  key={item.path}
+                  initial={{ opacity: 0, x: -14 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.08 + i * 0.045, ease: [0.22, 1, 0.36, 1] }}
+                >
                   <Link to={item.path} className={`nav-item ${active ? 'active' : ''}`}>
-                    <item.icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-primary' : ''}`} />
+                    <motion.span
+                      animate={{ color: active ? 'hsl(40 70% 56%)' : undefined }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <item.icon className="w-4 h-4 flex-shrink-0" />
+                    </motion.span>
                     <span>{item.label}</span>
                     {active && (
-                      <motion.div layoutId="nav-indicator" className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                      <motion.div
+                        layoutId="nav-indicator"
+                        className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
+                        layoutDependency={location.pathname}
+                      />
                     )}
                   </Link>
                 </motion.div>
@@ -104,7 +118,12 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           </nav>
 
           {/* Bottom actions */}
-          <div className="space-y-0.5 pt-4 border-t border-white/[0.05]">
+          <motion.div
+            className="space-y-0.5 pt-4 border-t border-white/[0.05]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.3 }}
+          >
             <Link to="/profile" className="nav-item">
               <User className="w-4 h-4" />
               <span>Profile</span>
@@ -113,11 +132,11 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               <Bell className="w-4 h-4" />
               <span>Notifications</span>
             </Link>
-            <button onClick={handleLogout} className="nav-item w-full text-left hover:text-red-400 hover:bg-red-500/5">
+            <button onClick={handleLogout} className="nav-item w-full text-left hover:text-red-400 hover:bg-red-500/5 transition-colors">
               <LogOut className="w-4 h-4" />
               <span>Sign out</span>
             </button>
-          </div>
+          </motion.div>
         </div>
       </aside>
 
@@ -147,10 +166,10 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0, y: 14, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -6, filter: 'blur(2px)' }}
+              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             >
               {children}
             </motion.div>

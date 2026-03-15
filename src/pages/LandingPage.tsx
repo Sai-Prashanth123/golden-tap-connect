@@ -3,8 +3,8 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { useRef } from 'react';
+import { motion, useMotionValue, useSpring, useTransform, useScroll, AnimatePresence } from 'framer-motion';
+import { useRef, useState, useEffect } from 'react';
 import {
   Brain, Nfc, Users, Trophy, MessageSquare, BarChart3,
   UserPlus, Scan, Handshake, Check, Star, ArrowRight, Zap, Wifi
@@ -15,6 +15,75 @@ const fadeUp = {
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true },
   transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
+};
+
+/** Thin gold scroll-progress bar fixed at the very top of the viewport */
+const ScrollProgress = () => {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
+  return (
+    <motion.div
+      style={{ scaleX, transformOrigin: '0%' }}
+      className="fixed top-0 left-0 right-0 h-[2px] z-[9998] pointer-events-none"
+      aria-hidden
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.5 }}
+    >
+      <div className="h-full bg-gradient-to-r from-primary via-accent to-primary" />
+    </motion.div>
+  );
+};
+
+/** Magnetic wrapper — button drifts slightly toward the cursor */
+const MagneticButton = ({ children, strength = 0.28 }: { children: React.ReactNode; strength?: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const sx = useSpring(x, { stiffness: 250, damping: 18 });
+  const sy = useSpring(y, { stiffness: 250, damping: 18 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = ref.current!.getBoundingClientRect();
+    x.set((e.clientX - (rect.left + rect.width / 2)) * strength);
+    y.set((e.clientY - (rect.top + rect.height / 2)) * strength);
+  };
+  const handleMouseLeave = () => { x.set(0); y.set(0); };
+
+  return (
+    <motion.div
+      ref={ref}
+      style={{ x: sx, y: sy }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="inline-block"
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+/** Word-by-word reveal for the hero headline */
+const WordReveal = ({ text, className, highlight }: { text: string; className?: string; highlight?: string }) => {
+  const words = text.split(' ');
+  return (
+    <span className={className} aria-label={text}>
+      {words.map((word, i) => {
+        const isHighlight = highlight && word.replace(/[,.]/, '') === highlight.replace(/[,.]/, '');
+        return (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0, y: 22, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.55, delay: 0.15 + i * 0.075, ease: [0.22, 1, 0.36, 1] }}
+            className={`inline-block ${isHighlight ? 'gold-shimmer-text' : ''} ${i < words.length - 1 ? 'mr-[0.25em]' : ''}`}
+          >
+            {word}
+          </motion.span>
+        );
+      })}
+    </span>
+  );
 };
 
 const FounderCardMockup = () => {
@@ -173,33 +242,52 @@ const HeroSection = () => (
     <ParticleBackground />
     <div className="relative z-10 container mx-auto px-6 pt-24 pb-16">
       <div className="flex flex-col lg:flex-row items-center gap-16">
-        <motion.div className="flex-1 text-center lg:text-left" {...fadeUp}>
-          <div className="gold-pill inline-flex items-center gap-1.5 mb-6">
+        <div className="flex-1 text-center lg:text-left">
+          <motion.div
+            className="gold-pill inline-flex items-center gap-1.5 mb-6"
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
             <Star className="w-3 h-3" /> Premium Networking Platform
-          </div>
-          <h1 className="text-5xl md:text-7xl font-display font-semibold leading-[1.1] mb-6">
-            Your network,{' '}
-            <span className="gold-gradient-text">one tap</span>{' '}
-            away
+          </motion.div>
+
+          <h1 className="text-5xl md:text-7xl font-display font-semibold leading-[1.08] mb-6">
+            <WordReveal text="Your network, one tap away" highlight="tap" />
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 font-body">
+
+          <motion.p
+            className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 font-body"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          >
             The premium event networking platform for founders, builders & leaders.
             Connect via NFC, discover AI-matched people, build lasting relationships.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
-            <Button variant="gold" size="xl" asChild>
-              <Link to="/register">Get Started Free <ArrowRight className="w-5 h-5 ml-1" /></Link>
-            </Button>
+          </motion.p>
+
+          <motion.div
+            className="flex flex-wrap gap-4 justify-center lg:justify-start"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.85, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <MagneticButton>
+              <Button variant="gold" size="xl" asChild>
+                <Link to="/register">Get Started Free <ArrowRight className="w-5 h-5 ml-1" /></Link>
+              </Button>
+            </MagneticButton>
             <Button variant="gold-ghost" size="xl" asChild>
               <a href="#features">See How It Works</a>
             </Button>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
+
         <motion.div
           className="flex-shrink-0"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, scale: 0.88, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
           <FounderCardMockup />
         </motion.div>
@@ -392,6 +480,7 @@ const Footer = () => (
 
 const LandingPage = () => (
   <div className="min-h-screen bg-background">
+    <ScrollProgress />
     <LandingNav />
     <HeroSection />
     <HowItWorks />
