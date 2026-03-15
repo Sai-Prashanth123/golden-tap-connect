@@ -92,7 +92,29 @@ const RegisterPage = () => {
         </motion.div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-10 bg-background overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-10 bg-background overflow-y-auto relative">
+        {/* Back to landing */}
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute top-6 left-6"
+        >
+          <Link
+            to="/"
+            className="group inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <motion.span
+              className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-border bg-card group-hover:border-primary/40 group-hover:bg-primary/5 transition-all"
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.92 }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </motion.span>
+            <span className="hidden sm:inline">Back to home</span>
+          </Link>
+        </motion.div>
+
         <div className="w-full max-w-md py-8">
           <div className="lg:hidden mb-8"><Logo /></div>
 

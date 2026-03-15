@@ -3,10 +3,11 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useRef } from 'react';
 import {
   Brain, Nfc, Users, Trophy, MessageSquare, BarChart3,
-  UserPlus, Scan, Handshake, Check, Star, ArrowRight, Zap
+  UserPlus, Scan, Handshake, Check, Star, ArrowRight, Zap, Wifi
 } from 'lucide-react';
 
 const fadeUp = {
@@ -16,29 +17,156 @@ const fadeUp = {
   transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
 };
 
-const FounderCardMockup = () => (
-  <div className="relative w-[340px] h-[210px] animate-float">
-    <div className="absolute inset-0 rounded-2xl gold-gradient-bg opacity-10 blur-2xl" />
-    <div className="relative w-full h-full rounded-2xl glass-card p-6 flex flex-col justify-between gold-border-glow">
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-primary fill-primary" />
-          <span className="font-display text-lg gold-gradient-text font-semibold">FounderKey</span>
+const FounderCardMockup = () => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+
+  const rotateX = useSpring(useTransform(rawY, [-1, 1], [14, -14]), { stiffness: 200, damping: 25 });
+  const rotateY = useSpring(useTransform(rawX, [-1, 1], [-14, 14]), { stiffness: 200, damping: 25 });
+  const glareX = useTransform(rawX, [-1, 1], ['0%', '100%']);
+  const glareY = useTransform(rawY, [-1, 1], ['0%', '100%']);
+  const glareOpacity = useSpring(0, { stiffness: 200, damping: 25 });
+  const scale = useSpring(1, { stiffness: 300, damping: 25 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    rawX.set((e.clientX - cx) / (rect.width / 2));
+    rawY.set((e.clientY - cy) / (rect.height / 2));
+    glareOpacity.set(0.18);
+  };
+
+  const handleMouseLeave = () => {
+    rawX.set(0);
+    rawY.set(0);
+    glareOpacity.set(0);
+    scale.set(1);
+  };
+
+  const handleMouseEnter = () => scale.set(1.04);
+
+  return (
+    <div style={{ perspective: '900px' }} className="relative">
+      {/* Ambient glow behind card */}
+      <motion.div
+        className="absolute inset-0 rounded-3xl blur-3xl pointer-events-none"
+        style={{
+          background: 'linear-gradient(135deg, rgba(212,168,76,0.25), rgba(212,168,76,0.05))',
+          rotateX, rotateY, scale,
+        }}
+      />
+
+      {/* The card */}
+      <motion.div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleMouseEnter}
+        style={{ rotateX, rotateY, scale, transformStyle: 'preserve-3d' }}
+        className="relative w-[340px] h-[210px] cursor-pointer"
+      >
+        {/* Card body */}
+        <div
+          className="relative w-full h-full rounded-3xl flex flex-col justify-between overflow-hidden select-none"
+          style={{
+            background: 'linear-gradient(145deg, #1a1810 0%, #111008 50%, #0e0d07 100%)',
+            border: '1px solid rgba(212,168,76,0.35)',
+            boxShadow: '0 0 0 1px rgba(212,168,76,0.1), 0 32px 80px rgba(0,0,0,0.6), 0 8px 24px rgba(212,168,76,0.08)',
+          }}
+        >
+          {/* Glare overlay */}
+          <motion.div
+            className="absolute inset-0 rounded-3xl pointer-events-none z-20"
+            style={{
+              opacity: glareOpacity,
+              background: useTransform(
+                [glareX, glareY],
+                ([x, y]) => `radial-gradient(circle at ${x} ${y}, rgba(255,255,255,0.25) 0%, transparent 65%)`
+              ),
+            }}
+          />
+
+          {/* Subtle gold grid texture */}
+          <div
+            className="absolute inset-0 rounded-3xl pointer-events-none opacity-[0.04]"
+            style={{
+              backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 28px,rgba(212,168,76,1) 28px,rgba(212,168,76,1) 29px),repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(212,168,76,1) 28px,rgba(212,168,76,1) 29px)',
+            }}
+          />
+
+          {/* Chip */}
+          <div className="absolute top-[52px] left-6 w-9 h-7 rounded-md border border-yellow-600/40 bg-gradient-to-br from-yellow-700/30 to-yellow-900/20 grid grid-cols-3 gap-px p-1 opacity-70">
+            {Array.from({length: 6}).map((_,i) => <div key={i} className="bg-yellow-600/30 rounded-[1px]" />)}
+          </div>
+
+          {/* Content — shifted to avoid chip overlap */}
+          <div className="relative z-10 p-5 pb-0 flex justify-between items-start">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary fill-primary" />
+              <span className="font-display text-base font-semibold" style={{ background: 'linear-gradient(135deg,#e8c46a,#c9a84c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>FounderKey</span>
+            </div>
+            <Wifi className="w-4 h-4 text-yellow-600/60 rotate-90" />
+          </div>
+
+          <div className="relative z-10 px-5 pb-5 mt-auto">
+            <p className="font-display text-xl font-medium text-white/90 mb-0.5">Alex Chen</p>
+            <p className="text-[12px] text-white/40 mb-3">Founder & CEO · NexusAI</p>
+            <div className="flex gap-1.5">
+              {['AI/ML', 'YC W22', 'SF Bay'].map((tag) => (
+                <span key={tag} className="px-2 py-0.5 rounded-full text-[10px] font-medium text-yellow-400/70 border border-yellow-600/25 bg-yellow-900/20">{tag}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom shimmer line */}
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-yellow-600/40 to-transparent" />
         </div>
-        <Nfc className="w-5 h-5 text-gold-dim" />
-      </div>
-      <div>
-        <p className="font-display text-xl text-foreground">Alex Chen</p>
-        <p className="text-sm text-muted-foreground">Founder & CEO · NexusAI</p>
-      </div>
-      <div className="flex gap-2">
-        <div className="gold-pill text-[10px]">AI/ML</div>
-        <div className="gold-pill text-[10px]">YC W22</div>
-        <div className="gold-pill text-[10px]">SF Bay</div>
+
+        {/* Floating depth badge */}
+        <motion.div
+          className="absolute -top-3 -right-3 w-10 h-10 rounded-2xl flex items-center justify-center z-30"
+          style={{
+            background: 'linear-gradient(135deg,#c9a84c,#a07820)',
+            boxShadow: '0 4px 16px rgba(201,168,76,0.4)',
+            translateZ: 20,
+          }}
+          animate={{ rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Nfc className="w-5 h-5 text-black" />
+        </motion.div>
+
+        {/* Floating pulse rings (NFC effect) */}
+        {[1, 2, 3].map((n) => (
+          <motion.div
+            key={n}
+            className="absolute -top-1 -right-1 w-12 h-12 rounded-full border border-primary/30 pointer-events-none"
+            animate={{ scale: [1, 2.2], opacity: [0.4, 0] }}
+            transition={{ duration: 2, repeat: Infinity, delay: n * 0.55, ease: 'easeOut' }}
+          />
+        ))}
+      </motion.div>
+
+      {/* Reflection */}
+      <div className="mt-2 w-[340px] h-[60px] overflow-hidden pointer-events-none" style={{ transform: 'scaleY(-1)' }}>
+        <div
+          className="w-full h-[210px] rounded-3xl opacity-[0.08] blur-sm"
+          style={{
+            background: 'linear-gradient(145deg, #1a1810 0%, #0e0d07 100%)',
+            border: '1px solid rgba(212,168,76,0.35)',
+            maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+          }}
+        />
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const HeroSection = () => (
   <section className="relative min-h-screen flex items-center justify-center overflow-hidden">

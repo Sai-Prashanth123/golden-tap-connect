@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ParticleBackground } from '@/components/ParticleBackground';
 import { Logo } from '@/components/Logo';
-import { Eye, EyeOff, Mail, Users, Calendar, Shield, ArrowRight, Zap, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Users, Calendar, Shield, ArrowRight, Zap, Lock, ArrowLeft } from 'lucide-react';
 import { useAppStore, mockAttendee, mockOrganizer, mockAdmin, type UserRole } from '@/store/appStore';
 
 const roles = [
@@ -105,7 +105,29 @@ const LoginPage = () => {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-10 bg-background">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-10 bg-background relative">
+        {/* Back to landing */}
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute top-6 left-6"
+        >
+          <Link
+            to="/"
+            className="group inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <motion.span
+              className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-border bg-card group-hover:border-primary/40 group-hover:bg-primary/5 transition-all"
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.92 }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </motion.span>
+            <span className="hidden sm:inline">Back to home</span>
+          </Link>
+        </motion.div>
+
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-8">
             <Logo />
