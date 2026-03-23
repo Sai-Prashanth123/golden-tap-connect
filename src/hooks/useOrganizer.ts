@@ -1,0 +1,123 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { organizerService, CreateEventPayload } from '@/services/organizer.service';
+import { toast } from 'sonner';
+
+export const orgKeys = {
+  dashboard: () => ['organizer', 'dashboard'] as const,
+  events: () => ['organizer', 'events'] as const,
+  guests: (id: string) => ['organizer', 'guests', id] as const,
+  analytics: (id: string) => ['organizer', 'analytics', id] as const,
+  leads: (params?: object) => ['organizer', 'leads', params] as const,
+};
+
+export function useOrgDashboard() {
+  return useQuery({
+    queryKey: orgKeys.dashboard(),
+    queryFn: () => organizerService.getDashboardStats(),
+    select: (res) => res.data,
+  });
+}
+
+export function useMyOrgEvents(page = 1, limit = 20) {
+  return useQuery({
+    queryKey: orgKeys.events(),
+    queryFn: () => organizerService.getMyEvents(page, limit),
+    select: (res) => res.data,
+  });
+}
+
+export function useEventGuests(eventId: string, params = {}) {
+  return useQuery({
+    queryKey: orgKeys.guests(eventId),
+    queryFn: () => organizerService.getEventGuests(eventId, params),
+    select: (res) => res.data,
+    enabled: !!eventId,
+  });
+}
+
+export function useEventAnalytics(eventId: string) {
+  return useQuery({
+    queryKey: orgKeys.analytics(eventId),
+    queryFn: () => organizerService.getEventAnalytics(eventId),
+    select: (res) => res.data,
+    enabled: !!eventId,
+  });
+}
+
+export function useCreateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateEventPayload) => organizerService.createEvent(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.events() });
+      toast.success('Event created!');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateEventPayload> }) =>
+      organizerService.updateEvent(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.events() });
+      toast.success('Event updated!');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function usePublishEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => organizerService.publishEvent(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.events() });
+      toast.success('Event published!');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => organizerService.deleteEvent(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.events() });
+      toast.success('Event deleted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCheckInAttendee(eventId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => organizerService.checkInAttendee(eventId, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgKeys.guests(eventId) });
+      toast.success('Attendee checked in!');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSendBlast(eventId: string) {
+  return useMutation({
+    mutationFn: (payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) =>
+      organizerService.sendEventBlast(eventId, payload),
+    onSuccess: (res) => toast.success(`Blast sent to ${res.data.sent} recipients`),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useOrgLeads(params = {}) {
+  return useQuery({
+    queryKey: orgKeys.leads(params),
+    queryFn: () => organizerService.getLeads(params),
+    select: (res) => res,
+  });
+}

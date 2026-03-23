@@ -1,125 +1,134 @@
 import { useState } from 'react';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
-import { CreditCard, MapPin, Check, ArrowRight, ArrowLeft, Zap } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { CreditCard, CheckCircle2, Clock, XCircle, ArrowLeft, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useMyCard, useApplyForCard } from '@/hooks/useFounderCard';
+import { useMyProfile } from '@/hooks/useProfile';
+import { motion } from 'framer-motion';
 
 const ApplyCardPage = () => {
-  const [step, setStep] = useState(1);
-  const navigate = useNavigate();
+  const [message, setMessage] = useState('');
+  const { data: card, isLoading } = useMyCard();
+  const { data: profileData } = useMyProfile();
+  const applyMutation = useApplyForCard();
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <div className="mb-8 text-center"><Logo /></div>
+  const profile = profileData?.profile;
+  const fullName = profile ? `${profile.firstName} ${profile.lastName}` : '';
 
-        {/* Progress */}
-        <div className="flex justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => (
-            <div key={s} className={`h-1 rounded-full transition-all ${s <= step ? 'bg-primary w-10' : 'bg-border w-6'}`} />
-          ))}
-        </div>
+  const statusConfig = {
+    PENDING: { icon: Clock, label: 'Under Review', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', desc: 'Your application is being reviewed. We\'ll notify you soon.' },
+    ACTIVE: { icon: CheckCircle2, label: 'Active', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', desc: 'Your FounderKey card is active! Share it with your network.' },
+    REJECTED: { icon: XCircle, label: 'Not Approved', color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', desc: card?.reason ?? 'Your application was not approved at this time.' },
+    DEACTIVATED: { icon: XCircle, label: 'Deactivated', color: 'text-muted-foreground', bg: 'bg-muted/50', desc: 'Your card has been deactivated.' },
+  };
 
-        {step === 1 && (
-          <GlassCard>
-            <CreditCard className="w-8 h-8 text-primary mb-4" />
-            <h2 className="font-display text-2xl font-semibold text-foreground mb-2">Apply for FounderCard</h2>
-            <p className="text-sm text-muted-foreground mb-6">Your premium NFC networking card</p>
-            <div className="space-y-3 mb-6">
-              {['Premium NFC card delivered to your door', 'One-tap connection at any event', 'Digital QR available immediately', 'Priority at all FounderKey events'].map((f, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-foreground">
-                  <Check className="w-4 h-4 text-primary flex-shrink-0" /> {f}
-                </div>
-              ))}
+  if (isLoading) {
+    return (
+      <div className="min-h-screen gold-gradient-bg flex items-center justify-center p-4">
+        <div className="w-10 h-10 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // If card exists, show status
+  if (card) {
+    const cfg = statusConfig[card.status];
+    const Icon = cfg.icon;
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Link to="/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 self-start max-w-md w-full">
+          <ArrowLeft className="w-4 h-4" /> Dashboard
+        </Link>
+        <div className="w-full max-w-md">
+          <GlassCard className="text-center">
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${cfg.bg} border mb-4`}>
+              <Icon className={`w-8 h-8 ${cfg.color}`} />
             </div>
-            <Button variant="gold" className="w-full" size="lg" onClick={() => setStep(2)}>
-              Continue <ArrowRight className="w-4 h-4 ml-1" />
+            <h2 className="font-display text-2xl font-semibold text-foreground mb-2">FounderKey Card</h2>
+            <p className={`text-sm font-medium mb-3 ${cfg.color}`}>{cfg.label}</p>
+            <p className="text-sm text-muted-foreground mb-6">{cfg.desc}</p>
+
+            {card.status === 'ACTIVE' && (
+              <div className="bg-card border border-border rounded-2xl p-6 mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Logo size="sm" />
+                  <div className="text-left">
+                    <p className="font-display text-lg font-bold text-foreground">{fullName}</p>
+                    <p className="text-xs text-muted-foreground">{profileData?.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs text-muted-foreground font-medium">FOUNDER CARD</span>
+                </div>
+              </div>
+            )}
+
+            <Button variant="gold" className="w-full" asChild>
+              <Link to="/dashboard">Back to Dashboard</Link>
             </Button>
           </GlassCard>
-        )}
+        </div>
+      </div>
+    );
+  }
 
-        {step === 2 && (
+  // Application form
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <Link to="/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 self-start max-w-md w-full">
+        <ArrowLeft className="w-4 h-4" /> Dashboard
+      </Link>
+      <div className="w-full max-w-md">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <GlassCard>
-            <MapPin className="w-8 h-8 text-primary mb-4" />
-            <h2 className="font-display text-2xl font-semibold text-foreground mb-6">Shipping Address</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Full Name</label>
-                <input className="gold-input w-full" placeholder="Alex Chen" />
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Address</label>
-                <input className="gold-input w-full" placeholder="123 Main St, Apt 4" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">City</label>
-                  <input className="gold-input w-full" placeholder="San Francisco" />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">ZIP Code</label>
-                  <input className="gold-input w-full" placeholder="94102" />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button variant="gold-ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                <Button variant="gold" className="flex-1" size="lg" onClick={() => setStep(3)}>
-                  Continue <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
+            <div className="w-16 h-16 rounded-2xl gold-gradient-bg flex items-center justify-center mx-auto mb-6">
+              <CreditCard className="w-8 h-8 text-primary-foreground" />
             </div>
-          </GlassCard>
-        )}
 
-        {step === 3 && (
-          <GlassCard>
-            <Zap className="w-8 h-8 text-primary mb-4" />
-            <h2 className="font-display text-2xl font-semibold text-foreground mb-6">Select Plan</h2>
-            <div className="space-y-3 mb-6">
+            <h1 className="font-display text-3xl font-bold text-foreground text-center mb-2">Apply for FounderKey Card</h1>
+            <p className="text-muted-foreground text-sm text-center mb-8">
+              The FounderKey card unlocks premium networking, exclusive events, and verifies your founder status.
+            </p>
+
+            <div className="space-y-4 mb-6">
               {[
-                { name: 'Monthly', price: '$29/mo', desc: 'Cancel anytime' },
-                { name: 'Annual', price: '$19/mo', desc: 'Save 34% — billed yearly', popular: true },
-              ].map((p, i) => (
-                <div key={i} className={`glass-card p-4 cursor-pointer transition-all ${p.popular ? 'gold-border-glow' : 'hover:border-primary/30'}`}>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-foreground">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{p.desc}</p>
-                    </div>
-                    <span className="font-display text-lg font-bold gold-gradient-text">{p.price}</span>
-                  </div>
-                  {p.popular && <span className="gold-pill text-[10px] mt-2 inline-block">Best Value</span>}
+                'Verified founder profile',
+                'Priority event access',
+                'NFC-powered networking',
+                'Exclusive founder community',
+              ].map((benefit) => (
+                <div key={benefit} className="flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm text-foreground">{benefit}</span>
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
-              <Button variant="gold-ghost" onClick={() => setStep(2)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-              <Button variant="gold" className="flex-1" size="lg" onClick={() => setStep(4)}>
-                Subscribe <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </GlassCard>
-        )}
 
-        {step === 4 && (
-          <GlassCard className="text-center gold-border-glow">
-            <div className="w-16 h-16 rounded-full gold-gradient-bg flex items-center justify-center mx-auto mb-4 gold-glow">
-              <Check className="w-8 h-8 text-primary-foreground" />
+            <div className="mb-4">
+              <label className="text-sm font-medium text-foreground block mb-1.5">Message to reviewers (optional)</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Tell us about your startup and why you'd like a FounderKey card..."
+                rows={3}
+                className="w-full px-3 py-2 text-sm bg-muted/30 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
             </div>
-            <h2 className="font-display text-2xl font-semibold text-foreground mb-2">Your FounderCard is on its way!</h2>
-            <p className="text-sm text-muted-foreground mb-6">Physical card arrives in 5–7 business days. Your digital QR is ready now.</p>
-            <div className="bg-foreground p-4 rounded-2xl inline-block mb-6">
-              <QRCodeSVG value="founderkey://card/1" size={160} bgColor="#E8E0D0" fgColor="#0D0D0D" />
-            </div>
-            <div className="space-y-2">
-              <Button variant="gold" className="w-full" size="lg" onClick={() => navigate('/dashboard')}>
-                Go to Dashboard
-              </Button>
-            </div>
+
+            <Button
+              variant="gold"
+              className="w-full"
+              size="lg"
+              onClick={() => applyMutation.mutate(message || undefined)}
+              disabled={applyMutation.isPending}
+            >
+              {applyMutation.isPending ? 'Submitting...' : 'Apply Now'}
+            </Button>
           </GlassCard>
-        )}
+        </motion.div>
       </div>
     </div>
   );

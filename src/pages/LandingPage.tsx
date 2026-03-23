@@ -274,7 +274,7 @@ const HeroSection = () => (
           >
             <MagneticButton>
               <Button variant="gold" size="xl" asChild>
-                <Link to="/register">Get Started Free <ArrowRight className="w-5 h-5 ml-1" /></Link>
+                <Link to="/login">Log In <ArrowRight className="w-5 h-5 ml-1" /></Link>
               </Button>
             </MagneticButton>
             <Button variant="gold-ghost" size="xl" asChild>
@@ -413,7 +413,7 @@ const PricingSection = () => {
                 ))}
               </ul>
               <Button variant={t.featured ? 'gold' : 'gold-ghost'} className="w-full" asChild>
-                <Link to="/register">{t.featured ? 'Get FounderCard' : 'Start Free'}</Link>
+                <Link to="/login">Log In</Link>
               </Button>
             </GlassCard>
           ))}

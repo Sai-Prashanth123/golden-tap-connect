@@ -1,63 +1,96 @@
+import { useState } from 'react';
 import { OrganizerLayout } from '@/components/OrganizerLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
-import { Download, Search, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Download, Search, Users } from 'lucide-react';
+import { useLeads, useUpdateLeadStatus } from '@/hooks/useLeads';
+import type { Lead } from '@/services/leads.service';
 
-const leads = [
-  { name: 'Priya Sharma', company: 'TechVentures', event: 'BLR Tech Week', score: 94, industry: 'Fintech', status: 'warm' },
-  { name: 'James Liu', company: 'Sequoia', event: 'YC Demo Day', score: 88, industry: 'VC', status: 'warm' },
-  { name: 'Sarah Mitchell', company: 'GreenScale', event: 'Climate Summit', score: 76, industry: 'Climate', status: 'cold' },
-  { name: 'Raj Patel', company: 'Finova', event: 'BLR Tech Week', score: 82, industry: 'Fintech', status: 'warm' },
-  { name: 'Mika Tanaka', company: 'ByteDance', event: 'Asia Tech', score: 65, industry: 'Social', status: 'cold' },
-];
+const STATUS_COLORS: Record<string, string> = {
+  NEW: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  CONTACTED: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  QUALIFIED: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  CONVERTED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  ARCHIVED: 'bg-muted text-muted-foreground border-border',
+};
 
-const LeadsPage = () => (
-  <OrganizerLayout>
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-semibold text-foreground">Leads</h1>
-        <Button variant="gold" size="sm"><Download className="w-4 h-4 mr-1" /> Export CSV</Button>
-      </div>
+const STATUSES = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'ARCHIVED'];
 
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input className="gold-input w-full pl-10" placeholder="Search leads..." />
+const LeadsPage = () => {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const { data } = useLeads({ search: search || undefined, status: statusFilter || undefined });
+  const updateMutation = useUpdateLeadStatus();
+
+  const leads = (data?.data as Lead[]) ?? [];
+
+  return (
+    <OrganizerLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h1 className="font-display text-3xl font-semibold text-foreground">Leads</h1>
+          <Button variant="gold-ghost" size="sm">
+            <Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
+          </Button>
         </div>
-        <Button variant="gold-ghost" size="icon"><Filter className="w-4 h-4" /></Button>
-      </div>
 
-      <GlassCard className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-2 text-xs text-muted-foreground font-medium">Name</th>
-              <th className="text-left py-3 px-2 text-xs text-muted-foreground font-medium">Company</th>
-              <th className="text-left py-3 px-2 text-xs text-muted-foreground font-medium">Event</th>
-              <th className="text-left py-3 px-2 text-xs text-muted-foreground font-medium">Score</th>
-              <th className="text-left py-3 px-2 text-xs text-muted-foreground font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leads.map((l, i) => (
-              <tr key={i} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                <td className="py-3 px-2 font-medium text-foreground">{l.name}</td>
-                <td className="py-3 px-2 text-muted-foreground">{l.company}</td>
-                <td className="py-3 px-2"><span className="gold-pill text-[10px]">{l.event}</span></td>
-                <td className="py-3 px-2 gold-gradient-text font-semibold">{l.score}</td>
-                <td className="py-3 px-2">
-                  <span className={`inline-flex items-center gap-1 text-xs ${l.status === 'warm' ? 'text-yellow-500' : 'text-blue-400'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${l.status === 'warm' ? 'bg-yellow-500' : 'bg-blue-400'}`} />
-                    {l.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </GlassCard>
-    </div>
-  </OrganizerLayout>
-);
+        <div className="flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..." className="pl-9 h-8 text-sm" />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-8 px-3 text-sm bg-muted/30 border border-border rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">All Status</option>
+            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+
+        <GlassCard>
+          {leads.length === 0 ? (
+            <div className="text-center py-10">
+              <Users className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No leads yet. They appear when attendees register for your events.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {leads.map((lead) => {
+                const name = lead.attendee?.profile
+                  ? `${lead.attendee.profile.firstName} ${lead.attendee.profile.lastName}`
+                  : lead.attendee?.email ?? 'Unknown';
+                return (
+                  <div key={lead.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/40 transition-colors">
+                    <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-foreground flex-shrink-0">
+                      {name[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {lead.attendee?.profile?.company ?? lead.attendee?.email}
+                        {lead.event?.title && ` · ${lead.event.title}`}
+                      </p>
+                    </div>
+                    <select
+                      value={lead.status}
+                      onChange={(e) => updateMutation.mutate({ leadId: lead.id, status: e.target.value })}
+                      className={`text-[10px] font-medium px-2 py-1 rounded-full border ${STATUS_COLORS[lead.status]} bg-transparent cursor-pointer focus:outline-none`}
+                    >
+                      {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </GlassCard>
+      </div>
+    </OrganizerLayout>
+  );
+};
 
 export default LeadsPage;

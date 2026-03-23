@@ -9,6 +9,8 @@ import NotFound from "./pages/NotFound.tsx";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import AuthCallback from "./pages/AuthCallback";
+import OnboardingPhone from "./pages/OnboardingPhone";
 
 import AttendeeDashboard from "./pages/attendee/Dashboard";
 import ProfilePage from "./pages/attendee/Profile";
@@ -25,6 +27,9 @@ import OrganizerDashboard from "./pages/organizer/Dashboard";
 import CreateEventPage from "./pages/organizer/CreateEvent";
 import LeadsPage from "./pages/organizer/Leads";
 import AttendeeDirectoryPage from "./pages/organizer/AttendeeDirectory";
+import EventManagePage from "./pages/organizer/EventManage";
+import CheckInPage from "./pages/organizer/CheckIn";
+import OrgAnalyticsPage from "./pages/organizer/Analytics";
 
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsersPage from "./pages/admin/Users";
@@ -46,6 +51,8 @@ const App = () => (
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/onboarding/phone" element={<OnboardingPhone />} />
 
           {/* Attendee — protected */}
           <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['attendee']}><AttendeeDashboard /></ProtectedRoute>} />
@@ -64,6 +71,9 @@ const App = () => (
           <Route path="/organizer/events/create" element={<ProtectedRoute allowedRoles={['organizer']}><CreateEventPage /></ProtectedRoute>} />
           <Route path="/organizer/attendees" element={<ProtectedRoute allowedRoles={['organizer']}><AttendeeDirectoryPage /></ProtectedRoute>} />
           <Route path="/organizer/leads" element={<ProtectedRoute allowedRoles={['organizer']}><LeadsPage /></ProtectedRoute>} />
+          <Route path="/organizer/events/:id/manage" element={<ProtectedRoute allowedRoles={['organizer']}><EventManagePage /></ProtectedRoute>} />
+          <Route path="/organizer/events/:id/checkin" element={<ProtectedRoute allowedRoles={['organizer']}><CheckInPage /></ProtectedRoute>} />
+          <Route path="/organizer/events/:id/analytics" element={<ProtectedRoute allowedRoles={['organizer']}><OrgAnalyticsPage /></ProtectedRoute>} />
 
           {/* Admin — protected */}
           <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />

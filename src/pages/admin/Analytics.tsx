@@ -1,41 +1,12 @@
 import { motion } from 'framer-motion';
 import { AdminLayout } from '@/components/AdminLayout';
 import { GlassCard } from '@/components/GlassCard';
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 import { TrendingUp, Users, Zap, Calendar, CreditCard, ArrowUpRight } from 'lucide-react';
-
-const signupData = [
-  { month: 'Oct', users: 820, revenue: 8200 },
-  { month: 'Nov', users: 1050, revenue: 10500 },
-  { month: 'Dec', users: 980, revenue: 11200 },
-  { month: 'Jan', users: 1340, revenue: 14800 },
-  { month: 'Feb', users: 1620, revenue: 17400 },
-  { month: 'Mar', users: 2010, revenue: 22100 },
-];
-
-const connectionData = [
-  { day: 'Mon', connections: 320 },
-  { day: 'Tue', connections: 480 },
-  { day: 'Wed', connections: 390 },
-  { day: 'Thu', connections: 620 },
-  { day: 'Fri', connections: 890 },
-  { day: 'Sat', connections: 1120 },
-  { day: 'Sun', connections: 750 },
-];
-
-const tierData = [
-  { name: 'Free', value: 9840, color: '#6B7280' },
-  { name: 'FounderCard', value: 3000, color: '#D4A853' },
-];
-
-const categoryData = [
-  { name: 'AI/ML', events: 42 },
-  { name: 'SaaS', events: 38 },
-  { name: 'Fintech', events: 31 },
-  { name: 'Climate', events: 22 },
-  { name: 'Web3', events: 19 },
-  { name: 'Other', events: 45 },
-];
+import { useAdminDashboard, useAdminAnalytics } from '@/hooks/useAdmin';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -43,7 +14,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="glass-card p-3 text-xs border border-primary/20">
         <p className="text-foreground font-medium mb-1">{label}</p>
         {payload.map((p: any) => (
-          <p key={p.name} style={{ color: p.color }}>{p.name}: {typeof p.value === 'number' && p.value > 1000 ? p.value.toLocaleString() : p.value}</p>
+          <p key={p.name} style={{ color: p.color }}>
+            {p.name}: {typeof p.value === 'number' && p.value > 1000 ? p.value.toLocaleString() : p.value}
+          </p>
         ))}
       </div>
     );
@@ -51,14 +24,37 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const TIER_COLORS = ['#6B7280', '#D4A853'];
+
 const AdminAnalyticsPage = () => {
+  const { data: stats } = useAdminDashboard();
+  const { data: analytics } = useAdminAnalytics();
+
+  // Use real data if available, otherwise show placeholder structure
+  const signupData = (analytics as any)?.signupsByMonth ?? [
+    { month: 'Oct', users: 0 }, { month: 'Nov', users: 0 },
+    { month: 'Dec', users: 0 }, { month: 'Jan', users: 0 },
+    { month: 'Feb', users: 0 }, { month: 'Mar', users: 0 },
+  ];
+  const connectionData = (analytics as any)?.connectionsByDay ?? [
+    { day: 'Mon', connections: 0 }, { day: 'Tue', connections: 0 },
+    { day: 'Wed', connections: 0 }, { day: 'Thu', connections: 0 },
+    { day: 'Fri', connections: 0 }, { day: 'Sat', connections: 0 }, { day: 'Sun', connections: 0 },
+  ];
+  const categoryData = (analytics as any)?.eventsByCategory ?? [];
+  const tierData = [
+    { name: 'Free', value: (stats?.totalUsers ?? 0) - (stats?.totalFounderCards ?? 0) },
+    { name: 'FounderCard', value: stats?.totalFounderCards ?? 0 },
+  ];
+  const tierTotal = tierData.reduce((s, t) => s + t.value, 0);
+
   const kpis = [
-    { label: 'Total Users', value: '12,840', change: '+18.4%', icon: Users, positive: true },
-    { label: 'Monthly Revenue', value: '₹18.4L', change: '+22.1%', icon: CreditCard, positive: true },
-    { label: 'Total Connections', value: '45.2K', change: '+31.2%', icon: Zap, positive: true },
-    { label: 'Active Events', value: '284', change: '+8.7%', icon: Calendar, positive: true },
-    { label: 'FounderCard Users', value: '3,000', change: '+41.0%', icon: TrendingUp, positive: true },
-    { label: 'Avg Session Time', value: '8m 42s', change: '+12.3%', icon: TrendingUp, positive: true },
+    { label: 'Total Users', value: stats?.totalUsers?.toLocaleString() ?? '—', icon: Users },
+    { label: 'Active Users (30d)', value: stats?.activeUsers?.toLocaleString() ?? '—', icon: TrendingUp },
+    { label: 'Total Connections', value: stats?.totalConnections?.toLocaleString() ?? '—', icon: Zap },
+    { label: 'Active Events', value: stats?.totalEvents?.toLocaleString() ?? '—', icon: Calendar },
+    { label: 'Founder Cards', value: stats?.totalFounderCards?.toLocaleString() ?? '—', icon: CreditCard },
+    { label: 'Events Created', value: stats?.totalEvents?.toLocaleString() ?? '—', icon: Calendar },
   ];
 
   return (
@@ -66,12 +62,11 @@ const AdminAnalyticsPage = () => {
       <div className="space-y-6 pb-8">
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">Platform Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Live dashboard · Updated every 5 minutes</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Real-time platform data</p>
         </div>
 
-        {/* KPI Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {kpis.map(({ label, value, change, icon: Icon, positive }, i) => (
+          {kpis.map(({ label, value, icon: Icon }, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
               <GlassCard hover className="relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 rounded-full gold-gradient-bg opacity-5 -translate-y-6 translate-x-6" />
@@ -79,10 +74,7 @@ const AdminAnalyticsPage = () => {
                   <div className="w-9 h-9 rounded-xl gold-gradient-bg flex items-center justify-center">
                     <Icon className="w-4 h-4 text-primary-foreground" />
                   </div>
-                  <span className={`flex items-center gap-0.5 text-xs font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    <ArrowUpRight className={`w-3 h-3 ${!positive ? 'rotate-180' : ''}`} />
-                    {change}
-                  </span>
+                  <ArrowUpRight className="w-3 h-3 text-emerald-400" />
                 </div>
                 <p className="font-display text-2xl font-bold gold-gradient-text">{value}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
@@ -91,10 +83,9 @@ const AdminAnalyticsPage = () => {
           ))}
         </div>
 
-        {/* Growth Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GlassCard>
-            <h3 className="font-display text-lg font-semibold text-foreground mb-4">User Signups & Revenue</h3>
+            <h3 className="font-display text-lg font-semibold text-foreground mb-4">User Signups by Month</h3>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={signupData}>
                 <defs>
@@ -102,18 +93,12 @@ const AdminAnalyticsPage = () => {
                     <stop offset="5%" stopColor="#D4A853" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#D4A853" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4B6BFB" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#4B6BFB" stopOpacity={0} />
-                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Area type="monotone" dataKey="users" stroke="#D4A853" fill="url(#usersGrad)" strokeWidth={2} name="Users" />
-                <Area type="monotone" dataKey="revenue" stroke="#4B6BFB" fill="url(#revenueGrad)" strokeWidth={2} name="Revenue (₹)" />
               </AreaChart>
             </ResponsiveContainer>
           </GlassCard>
@@ -132,7 +117,6 @@ const AdminAnalyticsPage = () => {
           </GlassCard>
         </div>
 
-        {/* Tier Distribution + Category */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GlassCard>
             <h3 className="font-display text-lg font-semibold text-foreground mb-4">User Tier Distribution</h3>
@@ -140,41 +124,41 @@ const AdminAnalyticsPage = () => {
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
                   <Pie data={tierData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
-                    {tierData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    {tierData.map((_, i) => <Cell key={i} fill={TIER_COLORS[i]} />)}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-3">
-                {tierData.map((t) => (
+                {tierData.map((t, i) => (
                   <div key={t.name} className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: TIER_COLORS[i] }} />
                     <div>
                       <p className="text-sm font-medium text-foreground">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.value.toLocaleString()} users · {Math.round(t.value / (tierData.reduce((s, x) => s + x.value, 0)) * 100)}%</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t.value.toLocaleString()} users · {tierTotal > 0 ? Math.round((t.value / tierTotal) * 100) : 0}%
+                      </p>
                     </div>
                   </div>
                 ))}
-                <div className="pt-2 border-t border-border">
-                  <p className="text-xs text-muted-foreground">Conversion rate</p>
-                  <p className="font-display text-xl font-bold gold-gradient-text">23.4%</p>
-                </div>
               </div>
             </div>
           </GlassCard>
 
-          <GlassCard>
-            <h3 className="font-display text-lg font-semibold text-foreground mb-4">Events by Category</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={categoryData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} width={55} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="events" fill="#D4A853" opacity={0.75} radius={[0, 4, 4, 0]} name="Events" />
-              </BarChart>
-            </ResponsiveContainer>
-          </GlassCard>
+          {categoryData.length > 0 && (
+            <GlassCard>
+              <h3 className="font-display text-lg font-semibold text-foreground mb-4">Events by Category</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={categoryData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} width={55} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="events" fill="#D4A853" opacity={0.75} radius={[0, 4, 4, 0]} name="Events" />
+                </BarChart>
+              </ResponsiveContainer>
+            </GlassCard>
+          )}
         </div>
       </div>
     </AdminLayout>

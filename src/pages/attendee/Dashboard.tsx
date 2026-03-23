@@ -5,9 +5,13 @@ import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/store/appStore';
 import { Link } from 'react-router-dom';
+import { useMyScore } from '@/hooks/useGamification';
+import { useMyRegistrations } from '@/hooks/useEvents';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useSocket } from '@/lib/socket';
 import {
   QrCode, Scan, CreditCard, Share2, Calendar, Users,
-  Trophy, ChevronRight, Sparkles, Zap, MapPin, ArrowUpRight,
+  Trophy, ChevronRight, Sparkles, Zap, MapPin, ArrowUpRight, Bell,
 } from 'lucide-react';
 
 const Counter = ({ to, delay = 0 }: { to: number; delay?: number }) => {
@@ -15,7 +19,7 @@ const Counter = ({ to, delay = 0 }: { to: number; delay?: number }) => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       let start = 0;
-      const step = to / 50;
+      const step = Math.max(1, to / 50);
       const id = setInterval(() => {
         start += step;
         if (start >= to) { setVal(to); clearInterval(id); }
@@ -30,21 +34,19 @@ const Counter = ({ to, delay = 0 }: { to: number; delay?: number }) => {
 
 const AttendeeDashboard = () => {
   const user = useAppStore((s) => s.user);
-  const score = user?.fkScore || 87;
+  useSocket(); // connect socket for real-time notifications
 
-  const connections = [
-    { name: 'Priya Sharma', role: 'CEO, TechVentures', time: '2h', warm: true },
-    { name: 'James Liu', role: 'Partner, Sequoia', time: '5h', warm: true },
-    { name: 'Sarah Mitchell', role: 'Founder, GreenScale', time: '1d', warm: false },
-    { name: 'Raj Patel', role: 'CTO, Finova', time: '1d', warm: true },
-    { name: 'Mika Tanaka', role: 'VP Eng, ByteDance', time: '2d', warm: false },
-  ];
+  const { data: gamification } = useMyScore();
+  const { data: registrations } = useMyRegistrations();
+  const { data: notifData } = useNotifications(1, 5);
 
-  const events = [
-    { name: 'BLR Tech Week', date: 'Today', attendees: 420, live: true },
-    { name: 'AI Founders Meetup', date: 'Wed', attendees: 85, live: false },
-    { name: 'Climate Summit', date: 'Fri', attendees: 200, live: false },
-  ];
+  const score = gamification?.fkScore ?? 0;
+  const level = gamification?.level ?? 1;
+  const myEvents = registrations?.registrations ?? [];
+  const upcomingEvents = myEvents
+    .filter((r) => r.status === 'REGISTERED' || r.status === 'WAITLISTED')
+    .slice(0, 3);
+  const unreadNotifCount = notifData?.unreadCount ?? 0;
 
   const actions = [
     { icon: Scan, label: 'Scan QR', to: '/connect' },
@@ -56,7 +58,7 @@ const AttendeeDashboard = () => {
   const fade = (delay = 0) => ({
     initial: { opacity: 0, y: 10 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.35, delay, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.35, delay, ease: [0.22, 1, 0.36, 1] as [number,number,number,number] },
   });
 
   return (
@@ -64,22 +66,32 @@ const AttendeeDashboard = () => {
       <div className="space-y-6 pb-28 md:pb-10">
 
         {/* Greeting */}
-        <motion.div {...fade(0)} className="pt-1">
-          <p className="text-sm text-muted-foreground mb-1">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-          <h1 className="font-display text-4xl font-semibold text-foreground">
-            Welcome back,{' '}
-            <span className="gold-gradient-text">{user?.name?.split(' ')[0] || 'there'}</span>
-          </h1>
+        <motion.div {...fade(0)} className="pt-1 flex items-start justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+            <h1 className="font-display text-4xl font-semibold text-foreground">
+              Welcome back,{' '}
+              <span className="gold-gradient-text">{user?.name?.split(' ')[0] || 'there'}</span>
+            </h1>
+          </div>
+          {unreadNotifCount > 0 && (
+            <Link to="/notifications" className="relative mt-2">
+              <Bell className="w-6 h-6 text-muted-foreground" />
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full gold-gradient-bg text-[9px] text-primary-foreground flex items-center justify-center font-bold">
+                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+              </span>
+            </Link>
+          )}
         </motion.div>
 
         {/* Stats row */}
         <motion.div {...fade(0.08)} className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Connections', value: user?.connectionsCount || 142, delta: '+12 this week', icon: Users },
-            { label: 'Events', value: user?.eventsAttended || 23, delta: '+2 this month', icon: Calendar },
-            { label: 'FK Score', value: score, delta: 'Gold tier', icon: Trophy, gold: true },
+            { label: 'Registered', value: myEvents.length, delta: 'Events', icon: Calendar },
+            { label: 'FK Score', value: score, delta: `Level ${level}`, icon: Trophy, gold: true },
+            { label: 'Upcoming', value: upcomingEvents.length, delta: 'Events', icon: Sparkles },
           ].map(({ label, value, delta, icon: Icon, gold }) => (
             <GlassCard key={label} padding="md" className="text-center">
               <Icon className="w-4 h-4 text-muted-foreground mx-auto mb-3" />
@@ -95,106 +107,8 @@ const AttendeeDashboard = () => {
         {/* Main grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bento-stagger">
 
-          {/* Today's event — full width on md, 2 cols on lg */}
-          <GlassCard hover className="lg:col-span-2">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="live-dot" />
-                  <span className="text-xs font-semibold text-emerald-400 tracking-wide">LIVE NOW</span>
-                </div>
-                <h3 className="font-display text-2xl font-semibold text-foreground mb-1">
-                  BLR Tech Week 2026
-                </h3>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 flex-shrink-0" /> Today · 10:00 AM – 6:00 PM</p>
-                  <p className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 flex-shrink-0" /> Bangalore International Centre</p>
-                  <p className="flex items-center gap-2"><Users className="w-3.5 h-3.5 flex-shrink-0" /> 420 attendees</p>
-                </div>
-              </div>
-              <span className="gold-pill text-[10px] flex-shrink-0 ml-4">Premium</span>
-            </div>
-            <div className="flex gap-2 pt-4 border-t border-border">
-              <Button variant="gold" size="sm" asChild>
-                <Link to="/connect"><QrCode className="w-3.5 h-3.5 mr-1.5" /> Check In</Link>
-              </Button>
-              <Button variant="gold-ghost" size="sm" asChild>
-                <Link to="/event/1">View Details <ChevronRight className="w-3 h-3 ml-1" /></Link>
-              </Button>
-            </div>
-          </GlassCard>
-
-          {/* AI Matches */}
-          <GlassCard hover>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-muted-foreground" />
-                <span className="section-label">AI Matches</span>
-              </div>
-              <Link to="/discover" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
-                View all <ArrowUpRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="flex items-baseline gap-3 mb-4">
-              <span className="font-display text-5xl font-bold text-foreground">3</span>
-              <span className="text-sm text-muted-foreground">new today</span>
-            </div>
-            <div className="space-y-3">
-              {[{ name: 'Priya S.', pct: 94 }, { name: 'James L.', pct: 88 }, { name: 'Raj P.', pct: 82 }].map((m) => (
-                <div key={m.name} className="flex items-center gap-2.5">
-                  <span className="text-xs text-muted-foreground w-14 truncate">{m.name}</span>
-                  <div className="flex-1 progress-track">
-                    <motion.div
-                      className="progress-fill"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${m.pct}%` }}
-                      transition={{ duration: 0.9, delay: 0.4 }}
-                    />
-                  </div>
-                  <span className="text-[11px] text-primary w-8 text-right">{m.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Recent connections */}
-          <GlassCard className="lg:row-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="section-label">Recent Connections</span>
-              </div>
-              <Link to="/connections" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
-                All {user?.connectionsCount || 142} <ArrowUpRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="space-y-1">
-              {connections.map((c, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 + i * 0.06 }}
-                  className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer group"
-                >
-                  <div className="relative flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-foreground text-xs font-semibold">
-                      {c.name[0]}
-                    </div>
-                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${c.warm ? 'bg-amber-500' : 'bg-slate-500'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{c.role}</p>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground/60">{c.time}</span>
-                </motion.div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* FK Score */}
-          <GlassCard>
+          {/* FK Score Ring */}
+          <GlassCard className="lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <Trophy className="w-4 h-4 text-muted-foreground" />
               <span className="section-label">FK Score</span>
@@ -210,42 +124,22 @@ const AttendeeDashboard = () => {
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeDasharray="0 100.5"
-                    animate={{ strokeDasharray: `${score * 1.005} 100.5` }}
+                    animate={{ strokeDasharray: `${Math.min(score, 100) * 1.005} 100.5` }}
                     transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-display text-xl font-bold text-foreground leading-none">{score}</span>
-                  <span className="text-[9px] text-muted-foreground">/ 100</span>
+                  <span className="text-[9px] text-muted-foreground">pts</span>
                 </div>
               </div>
               <div>
-                <p className="font-semibold text-foreground text-sm mb-0.5">Gold Connector</p>
-                <p className="text-xs text-muted-foreground mb-2">Top 15% this month</p>
-                <span className="gold-pill text-[10px]">+5 this week</span>
+                <p className="font-semibold text-foreground text-sm mb-0.5">Level {level}</p>
+                <p className="text-xs text-muted-foreground mb-2">FK Score</p>
+                <Link to="/gamification">
+                  <span className="gold-pill text-[10px]">View Progress</span>
+                </Link>
               </div>
-            </div>
-          </GlassCard>
-
-          {/* Active challenge */}
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-4">
-              <Zap className="w-4 h-4 text-muted-foreground" />
-              <span className="section-label">Challenge</span>
-            </div>
-            <p className="font-semibold text-foreground mb-1">Meet 5 speakers</p>
-            <p className="text-xs text-muted-foreground mb-4">Unlock VIP Lounge access</p>
-            <div className="progress-track mb-2">
-              <motion.div
-                className="progress-fill"
-                initial={{ width: 0 }}
-                animate={{ width: '60%' }}
-                transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
-              />
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">3 of 5 done</span>
-              <span className="text-primary font-medium">60%</span>
             </div>
           </GlassCard>
 
@@ -266,30 +160,102 @@ const AttendeeDashboard = () => {
             </div>
           </GlassCard>
 
-          {/* Events this week */}
+          {/* Active challenge */}
+          <GlassCard>
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="w-4 h-4 text-muted-foreground" />
+              <span className="section-label">Challenge</span>
+            </div>
+            <p className="font-semibold text-foreground mb-1">Attend your first event</p>
+            <p className="text-xs text-muted-foreground mb-4">Earn 50 FK points</p>
+            <div className="progress-track mb-2">
+              <motion.div
+                className="progress-fill"
+                initial={{ width: 0 }}
+                animate={{ width: myEvents.length > 0 ? '100%' : '0%' }}
+                transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
+              />
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">{myEvents.length > 0 ? 'Completed!' : 'Register for an event'}</span>
+              <span className="text-primary font-medium">{myEvents.length > 0 ? '100%' : '0%'}</span>
+            </div>
+          </GlassCard>
+
+          {/* Upcoming events */}
           <GlassCard className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="section-label">Events This Week</span>
+                <span className="section-label">My Upcoming Events</span>
               </div>
               <Link to="/events" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
-                See all <ArrowUpRight className="w-3 h-3" />
+                Browse all <ArrowUpRight className="w-3 h-3" />
               </Link>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {events.map((e, i) => (
+            {upcomingEvents.length === 0 ? (
+              <div className="text-center py-6">
+                <Calendar className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No upcoming events.</p>
+                <Button variant="gold" size="sm" className="mt-3" asChild>
+                  <Link to="/events">Browse Events</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {upcomingEvents.map((r, i) => (
+                  <Link
+                    key={r.id}
+                    to={`/event/${r.eventId}`}
+                    className="p-3.5 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {r.status === 'WAITLISTED' ? 'Waitlisted' : 'Registered'}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground leading-snug mb-1 truncate">
+                      {r.event?.title ?? 'Event'}
+                    </p>
+                    {r.event?.startDate && (
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(r.event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </p>
+                    )}
+                    {r.event?.city && (
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {r.event.city}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+
+          {/* Discover */}
+          <GlassCard hover>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-muted-foreground" />
+                <span className="section-label">Discover</span>
+              </div>
+              <Link to="/discover" className="flex items-center gap-0.5 text-[11px] text-primary font-medium hover:underline">
+                Explore <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">Find events tailored to your interests and connections.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {['Tech', 'Business', 'Design', 'Startup'].map((cat) => (
                 <Link
-                  key={i}
-                  to="/events"
-                  className={`p-3.5 rounded-xl border transition-colors ${e.live ? 'border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/8' : 'border-border bg-muted/30 hover:bg-muted/50'}`}
+                  key={cat}
+                  to={`/discover?category=${cat.toLowerCase()}`}
+                  className="p-2.5 rounded-xl bg-muted/40 hover:bg-secondary transition-colors text-center"
                 >
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {e.live ? <div className="live-dot" /> : <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
-                    <span className={`text-[10px] font-semibold uppercase tracking-wide ${e.live ? 'text-emerald-400' : 'text-muted-foreground'}`}>{e.date}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-foreground leading-snug mb-1">{e.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{e.attendees} attendees</p>
+                  <span className="text-[11px] font-medium text-muted-foreground">{cat}</span>
                 </Link>
               ))}
             </div>

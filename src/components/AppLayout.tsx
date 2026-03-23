@@ -3,9 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/components/Logo';
 import { useAppStore } from '@/store/appStore';
+import { useUnreadCount } from '@/hooks/useNotifications';
 import {
   Home, Scan, Calendar, Users, Trophy, Bell, User,
-  LogOut, Compass, QrCode, Zap,
+  LogOut, Compass, QrCode,
 } from 'lucide-react';
 
 const navItems = [
@@ -30,6 +31,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const { data: unreadCount = 0 } = useUnreadCount();
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
@@ -129,7 +131,14 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               <span>Profile</span>
             </Link>
             <Link to="/notifications" className="nav-item">
-              <Bell className="w-4 h-4" />
+              <div className="relative">
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
               <span>Notifications</span>
             </Link>
             <button onClick={handleLogout} className="nav-item w-full text-left hover:text-red-400 hover:bg-red-500/5 transition-colors">
@@ -147,8 +156,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-white/[0.05] backdrop-blur-xl bg-background/80">
           <Logo size="sm" />
           <div className="flex items-center gap-2">
-            <Link to="/notifications" className="w-9 h-9 rounded-xl glass-card flex items-center justify-center">
+            <Link to="/notifications" className="relative w-9 h-9 rounded-xl glass-card flex items-center justify-center">
               <Bell className="w-4 h-4 text-muted-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
             <Link to="/profile">
               <div className="w-9 h-9 rounded-xl gold-gradient-bg flex items-center justify-center text-primary-foreground text-xs font-bold overflow-hidden">

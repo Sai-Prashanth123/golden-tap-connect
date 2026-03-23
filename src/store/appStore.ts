@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { clearTokens } from '@/services/api';
 
 export type UserRole = 'attendee' | 'organizer' | 'admin';
 export type UserTier = 'free' | 'founder';
@@ -81,7 +82,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setActiveRole: (role) => { set({ activeRole: role }); saveToStorage(get()); },
   login: (user) => { set({ user, isAuthenticated: true, activeRole: user.role }); saveToStorage({ user, isAuthenticated: true, activeRole: user.role }); },
-  logout: () => { set({ user: null, isAuthenticated: false, activeRole: 'attendee' }); saveToStorage({ user: null, isAuthenticated: false, activeRole: 'attendee' }); },
+  logout: () => { clearTokens(); set({ user: null, isAuthenticated: false, activeRole: 'attendee' }); saveToStorage({ user: null, isAuthenticated: false, activeRole: 'attendee' }); },
   activateCard: () => {
     const user = get().user;
     if (user) { const updated = { ...user, hasFounderCard: true, cardStatus: 'active' as const, tier: 'founder' as const, cardQR: `founderkey://card/${user.id}` }; set({ user: updated }); saveToStorage({ ...get(), user: updated }); }

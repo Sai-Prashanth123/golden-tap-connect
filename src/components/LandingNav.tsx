@@ -17,11 +17,8 @@ export const LandingNav = () => {
           <a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a>
         </div>
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/login">Log in</Link>
-          </Button>
           <Button variant="gold" size="sm" asChild>
-            <Link to="/register">Get Started</Link>
+            <Link to="/login">Log In</Link>
           </Button>
         </div>
         <button className="md:hidden text-foreground" onClick={() => setOpen(!open)}>
@@ -32,7 +29,7 @@ export const LandingNav = () => {
         <div className="md:hidden p-6 border-t border-border flex flex-col gap-4">
           <a href="#features" className="text-sm text-muted-foreground">Features</a>
           <a href="#pricing" className="text-sm text-muted-foreground">Pricing</a>
-          <Button variant="gold" size="sm" asChild><Link to="/register">Get Started</Link></Button>
+          <Button variant="gold" size="sm" asChild><Link to="/login">Log In</Link></Button>
         </div>
       )}
     </nav>

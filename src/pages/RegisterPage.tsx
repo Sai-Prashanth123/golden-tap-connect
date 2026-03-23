@@ -9,7 +9,9 @@ import {
   Eye, EyeOff, Users, Calendar, Shield, ArrowRight, ArrowLeft,
   Phone, User, Building, GraduationCap, MapPin, Briefcase,
 } from 'lucide-react';
-import { useAppStore, mockAttendee, mockOrganizer, mockAdmin, type UserRole } from '@/store/appStore';
+import { useAppStore, type UserRole } from '@/store/appStore';
+import { apiRegister } from '@/services/auth.service';
+import { toast } from 'sonner';
 
 const roles = [
   { value: 'attendee' as UserRole, icon: Users, title: 'Attendee', desc: 'Connect at events, build your network', color: 'from-amber-500/20 to-yellow-600/10', border: 'border-amber-500/40' },
@@ -36,29 +38,48 @@ const RegisterPage = () => {
   const [location, setLocation] = useState('');
   const [linkedin, setLinkedin] = useState('');
 
+  const [submitting, setSubmitting] = useState(false);
   const login = useAppStore((s) => s.login);
   const navigate = useNavigate();
 
-  const demoMap = { attendee: mockAttendee, organizer: mockOrganizer, admin: mockAdmin };
-
-  const handleSubmit = () => {
-    const base = demoMap[role];
-    login({
-      ...base,
-      name: name || base.name,
-      email: email || base.email,
-      phone: phone || base.phone,
-      role,
-      accountType,
-      gender: gender || base.gender,
-      age: age ? parseInt(age) : base.age,
-      designation: designation || base.designation,
-      company: company || base.company,
-      industry: industry || base.industry,
-      location: location || base.location,
-      linkedin: linkedin || base.linkedin,
-    });
-    navigate(role === 'attendee' ? '/dashboard' : role === 'organizer' ? '/organizer/dashboard' : '/admin/dashboard');
+  const handleSubmit = async () => {
+    if (!name || !email || !password) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] ?? name;
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const { user } = await apiRegister({
+        email,
+        password,
+        firstName,
+        lastName,
+        role,
+        company: company || undefined,
+      });
+      // Enrich user with form data not yet in backend profile
+      login({
+        ...user,
+        name,
+        phone: phone || undefined,
+        accountType,
+        gender: gender || undefined,
+        age: age ? parseInt(age) : undefined,
+        designation: designation || undefined,
+        company: company || user.company,
+        industry: industry || undefined,
+        location: location || undefined,
+        linkedin: linkedin || undefined,
+      });
+      navigate(role === 'attendee' ? '/dashboard' : role === 'organizer' ? '/organizer/dashboard' : '/admin/dashboard');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Registration failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const steps = ['Account', 'Role', 'Profile', 'Details'];
@@ -289,8 +310,8 @@ const RegisterPage = () => {
                   </div>
                   <div className="flex gap-3 mt-2">
                     <Button variant="gold-ghost" onClick={() => setStep(3)}><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-                    <Button variant="gold" className="flex-1" size="lg" onClick={handleSubmit}>
-                      Create Account <ArrowRight className="w-4 h-4 ml-1" />
+                    <Button variant="gold" className="flex-1" size="lg" onClick={handleSubmit} disabled={submitting}>
+                      {submitting ? 'Creating…' : <><span>Create Account</span> <ArrowRight className="w-4 h-4 ml-1" /></>}
                     </Button>
                   </div>
                 </div>

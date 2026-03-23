@@ -121,26 +121,45 @@
   /* ── Gold only where it matters ─────────────────────── */
   .gold-gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(38,80%,65%), hsl(40,70%,56%));
+    /* Richer metallic gold based on provided palette:
+       #F9F295 (light), #FAF398 (soft highlight), #E0AA3E (mid), #B88A44 (deep) */
+    background-image: linear-gradient(
+      135deg,
+      #faf398 0%,
+      #f9f295 18%,
+      #e0aa3e 55%,
+      #b88a44 100%
+    );
   }
 
   /* Animated shimmer sweep — for hero headlines and key labels */
   .gold-shimmer-text {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(
-      105deg,
-      hsl(40,70%,56%) 0%,
-      hsl(38,80%,72%) 35%,
-      hsl(46,90%,82%) 50%,
-      hsl(38,80%,72%) 65%,
-      hsl(40,70%,56%) 100%
+      110deg,
+      #b88a44 0%,
+      #e0aa3e 22%,
+      #faf398 50%,
+      #f9f295 60%,
+      #e0aa3e 78%,
+      #b88a44 100%
     );
-    background-size: 200% auto;
+    background-size: 220% auto;
     animation: gold-shimmer 4s linear infinite;
   }
 
   .gold-gradient-bg {
-    background: linear-gradient(135deg, hsl(var(--gold-primary)), hsl(var(--gold-bright)));
+    /* Button / badge background using the same metallic ramp */
+    background: linear-gradient(
+      135deg,
+      #faf398 0%,
+      #f9f295 16%,
+      #e0aa3e 45%,
+      #b88a44 90%
+    );
+    box-shadow:
+      0 10px 30px rgba(184,138,68,0.55),
+      0 0 0 1px rgba(234,199,112,0.65);
   }
 
   .gold-gradient-bg-subtle {
