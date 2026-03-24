@@ -11,6 +11,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AuthCallback from "./pages/AuthCallback";
 import OnboardingPhone from "./pages/OnboardingPhone";
+import PublicEventPage from "./pages/PublicEventPage";
 
 import AttendeeDashboard from "./pages/attendee/Dashboard";
 import ProfilePage from "./pages/attendee/Profile";
@@ -25,6 +26,7 @@ import ApplyCardPage from "./pages/attendee/ApplyCard";
 
 import OrganizerDashboard from "./pages/organizer/Dashboard";
 import CreateEventPage from "./pages/organizer/CreateEvent";
+import OrgEventDetail from "./pages/organizer/OrgEventDetail";
 import LeadsPage from "./pages/organizer/Leads";
 import AttendeeDirectoryPage from "./pages/organizer/AttendeeDirectory";
 import EventManagePage from "./pages/organizer/EventManage";
@@ -45,7 +47,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
@@ -53,6 +55,8 @@ const App = () => (
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/onboarding/phone" element={<OnboardingPhone />} />
+          {/* Public shareable event page — no auth required */}
+          <Route path="/e/:id" element={<PublicEventPage />} />
 
           {/* Attendee — protected */}
           <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['attendee']}><AttendeeDashboard /></ProtectedRoute>} />
@@ -69,6 +73,7 @@ const App = () => (
           {/* Organizer — protected */}
           <Route path="/organizer/dashboard" element={<ProtectedRoute allowedRoles={['organizer']}><OrganizerDashboard /></ProtectedRoute>} />
           <Route path="/organizer/events/create" element={<ProtectedRoute allowedRoles={['organizer']}><CreateEventPage /></ProtectedRoute>} />
+          <Route path="/organizer/events/:id" element={<ProtectedRoute allowedRoles={['organizer']}><OrgEventDetail /></ProtectedRoute>} />
           <Route path="/organizer/attendees" element={<ProtectedRoute allowedRoles={['organizer']}><AttendeeDirectoryPage /></ProtectedRoute>} />
           <Route path="/organizer/leads" element={<ProtectedRoute allowedRoles={['organizer']}><LeadsPage /></ProtectedRoute>} />
           <Route path="/organizer/events/:id/manage" element={<ProtectedRoute allowedRoles={['organizer']}><EventManagePage /></ProtectedRoute>} />

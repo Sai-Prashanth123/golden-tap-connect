@@ -1,6 +1,16 @@
 import { apiFetch } from './api';
 import type { Event, Pagination } from './events.service';
 
+export interface TicketTypePayload {
+  id: string;
+  name: string;
+  price: number;
+  count: number;
+  benefits: string[];
+  color: string;
+  isEnabled: boolean;
+}
+
 export interface CreateEventPayload {
   title: string;
   description: string;
@@ -23,6 +33,35 @@ export interface CreateEventPayload {
   requiresApproval?: boolean;
   waitlistEnabled?: boolean;
   visibility?: 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
+  timezone?: string;
+  ticketTypes?: TicketTypePayload[];
+}
+
+export interface AttendeeItem {
+  id: string;
+  userId: string;
+  status: string;
+  checkedIn: boolean;
+  checkedInAt?: string | null;
+  registeredAt: string;
+  email: string;
+  event: { id: string; title: string; startDate: string };
+  user: {
+    id: string;
+    email: string;
+    tier: string;
+    profile?: {
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+      company?: string;
+      position?: string;
+      linkedin?: string;
+      skills?: string[];
+    };
+    founderCard?: { status: string } | null;
+    gamification?: { fkScore: number; level: number } | null;
+  };
 }
 
 export interface Guest {
@@ -69,7 +108,8 @@ export const organizerService = {
   },
 
   async getMyEvents(page = 1, limit = 20) {
-    return apiFetch<{ data: { events: (Event & { registeredCount: number })[]; pagination: Pagination } }>(
+    // sendPaginated returns { data: [...], pagination: {...} }
+    return apiFetch<{ data: (Event & { registeredCount: number })[]; pagination: Pagination }>(
       `/events/organizer?page=${page}&limit=${limit}`
     );
   },
@@ -104,9 +144,17 @@ export const organizerService = {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => v !== undefined && qs.set(k, String(v)));
     const query = qs.toString() ? `?${qs.toString()}` : '';
-    return apiFetch<{ data: { guests: Guest[]; pagination: Pagination; event: { id: string; title: string; capacity: number } } }>(
+    // sendPaginated returns { data: [...guests...], pagination: {...} }
+    return apiFetch<{ data: Guest[]; pagination: Pagination }>(
       `/organizer/events/${id}/guests${query}`
     );
+  },
+
+  async getAttendees(params: { eventId?: string; search?: string; page?: number; limit?: number } = {}) {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => v !== undefined && qs.set(k, String(v)));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{ data: AttendeeItem[]; pagination: Pagination }>(`/organizer/attendees${query}`);
   },
 
   async checkInAttendee(eventId: string, userId: string) {

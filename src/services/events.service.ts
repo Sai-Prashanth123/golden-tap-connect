@@ -69,7 +69,8 @@ export interface Pagination {
 }
 
 export interface EventsResponse {
-  data: { events: Event[]; pagination: Pagination };
+  data: Event[];
+  pagination: Pagination;
 }
 
 export interface EventResponse {
@@ -77,7 +78,8 @@ export interface EventResponse {
 }
 
 export interface RegistrationsResponse {
-  data: { registrations: EventRegistration[]; pagination: Pagination };
+  data: EventRegistration[];
+  pagination: Pagination;
 }
 
 export interface SearchEventsParams {

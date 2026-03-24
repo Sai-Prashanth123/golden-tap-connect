@@ -82,7 +82,7 @@ const OrganizerDashboard = () => {
                       </p>
                     </div>
                     <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/organizer/events/${e.id}/manage`}>
+                      <Link to={`/organizer/events/${e.id}`}>
                         <ChevronRight className="w-4 h-4" />
                       </Link>
                     </Button>

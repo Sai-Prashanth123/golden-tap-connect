@@ -91,14 +91,29 @@ export async function apiFetch<T = unknown>(
     const retryRes = await fetch(`${API_URL}${path}`, { ...options, headers });
     if (!retryRes.ok) {
       const err = await retryRes.json().catch(() => ({ message: 'Request failed' }));
-      throw new ApiError((err as { message: string }).message || 'Request failed', retryRes.status);
+      const retryData = err as { message?: string; errors?: { field: string; message: string }[] };
+      const retryDetail = retryData.errors?.length
+        ? retryData.errors.map((e) => `${e.field}: ${e.message}`).join(' | ')
+        : null;
+      const retryMessage = retryDetail
+        ? `${retryData.message || 'Validation failed'} — ${retryDetail}`
+        : retryData.message || 'Request failed';
+      throw new ApiError(retryMessage, retryRes.status);
     }
     return retryRes.json() as Promise<T>;
   }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'Request failed' }));
-    throw new ApiError((err as { message: string }).message || 'Request failed', res.status);
+    const errData = err as { message?: string; errors?: { field: string; message: string }[] };
+    // Include field-level validation errors in the message so toasts are actionable
+    const detail = errData.errors?.length
+      ? errData.errors.map((e) => `${e.field}: ${e.message}`).join(' | ')
+      : null;
+    const message = detail
+      ? `${errData.message || 'Validation failed'} — ${detail}`
+      : errData.message || 'Request failed';
+    throw new ApiError(message, res.status);
   }
 
   return res.json() as Promise<T>;

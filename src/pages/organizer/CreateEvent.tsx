@@ -228,20 +228,36 @@ const CreateEventPage = () => {
   // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleCreateOrUpdate = async (publish = false) => {
+    // Client-side validation before hitting the backend
+    const startISO = toISO(form.startDate, form.startTime);
+    const endISO   = toISO(form.endDate, form.endTime);
+
+    if (!startISO) { toast.error('Please set a start date.'); return; }
+    if (!endISO)   { toast.error('Please set an end date.'); return; }
+
+    const startDt = new Date(startISO);
+    const endDt   = new Date(endISO);
+
+    if (startDt <= new Date()) { toast.error('Start date must be in the future.'); return; }
+    if (endDt <= startDt)     { toast.error('End date must be after the start date.'); return; }
+
+    // Only send meetingUrl when applicable to the event type
+    const meetingUrl = form.locationType !== 'IN_PERSON' ? (form.meetingUrl || undefined) : undefined;
+
     const activeTickets = form.useTicketTypes ? form.ticketTypes.filter((t) => t.isEnabled) : undefined;
 
     const payload = {
       title: form.title,
       description: form.description,
       category: form.category || undefined,
-      startDate: toISO(form.startDate, form.startTime),
-      endDate: toISO(form.endDate, form.endTime),
+      startDate: startISO,
+      endDate: endISO,
       type: form.locationType,
       location: {
         address: form.address || undefined,
         city: form.city || undefined,
         country: form.country || undefined,
-        meetingUrl: form.meetingUrl || undefined,
+        meetingUrl,
       },
       coverImage: form.coverImage || undefined,
       theme: form.theme,
@@ -256,14 +272,23 @@ const CreateEventPage = () => {
       slug: form.slug || undefined,
     };
 
-    const res = await createMutation.mutateAsync(payload);
-    if (publish) await publishMutation.mutateAsync(res.data.id);
-    navigate('/organizer/dashboard');
+    try {
+      const res = await createMutation.mutateAsync(payload);
+      if (publish) await publishMutation.mutateAsync(res.data.id);
+      navigate('/organizer/dashboard');
+    } catch {
+      // Error is already shown by the mutation's onError toast
+    }
   };
 
   const canNext = () => {
     if (step === 1) return form.title.length >= 3 && form.description.length >= 10;
-    if (step === 2) return !!form.startDate && !!form.endDate;
+    if (step === 2) {
+      if (!form.startDate || !form.endDate) return false;
+      const start = new Date(`${form.startDate}T${form.startTime}:00`);
+      const end   = new Date(`${form.endDate}T${form.endTime}:00`);
+      return end > start && start > new Date();
+    }
     return true;
   };
 
@@ -364,6 +389,14 @@ const CreateEventPage = () => {
                       <Input type="time" value={form.endTime} onChange={(e) => set('endTime', e.target.value)} />
                     </div>
                   </div>
+                  {/* Show date validation hint */}
+                  {form.startDate && form.endDate && (() => {
+                    const s = new Date(`${form.startDate}T${form.startTime}:00`);
+                    const e = new Date(`${form.endDate}T${form.endTime}:00`);
+                    if (s <= new Date()) return <p className="text-xs text-red-400">Start date must be in the future.</p>;
+                    if (e <= s) return <p className="text-xs text-red-400">End date/time must be after start date/time.</p>;
+                    return null;
+                  })()}
 
                   {/* Timezone */}
                   <div>

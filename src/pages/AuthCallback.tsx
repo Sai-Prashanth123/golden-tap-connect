@@ -20,18 +20,21 @@ const AuthCallback = () => {
     if (called.current) return;
     called.current = true;
 
-    const pendingRole = sessionStorage.getItem('fk-oauth-role') ?? 'attendee';
-    sessionStorage.removeItem('fk-oauth-role');
+    const pendingRole = localStorage.getItem('fk-oauth-role') ?? 'attendee';
+    localStorage.removeItem('fk-oauth-role');
+    console.log('[AuthCallback] pendingRole from localStorage:', pendingRole);
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error || !session) {
-        console.error('OAuth session error:', error?.message ?? 'No session');
+        console.error('[AuthCallback] OAuth session error:', error?.message ?? 'No session');
         navigate('/login');
         return;
       }
 
       try {
+        console.log('[AuthCallback] Calling googleVerify with role:', pendingRole);
         const { user } = await apiGoogleVerify(session.access_token, pendingRole);
+        console.log('[AuthCallback] Verified user — role:', user.role, '→ navigating to:', ROLE_PATHS[user.role]);
         login(user);
         // Collect phone if not already set
         if (!user.phone) {
@@ -40,7 +43,7 @@ const AuthCallback = () => {
           navigate(ROLE_PATHS[user.role] ?? '/dashboard');
         }
       } catch (err) {
-        console.error('Google verify failed:', err);
+        console.error('[AuthCallback] Google verify failed:', err);
         navigate('/login');
       }
     });

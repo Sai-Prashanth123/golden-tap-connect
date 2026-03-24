@@ -14,7 +14,7 @@ export function useEvents(params: SearchEventsParams = {}) {
   return useQuery({
     queryKey: eventKeys.list(params),
     queryFn: () => eventsService.listEvents(params),
-    select: (res) => res.data,
+    select: (res) => ({ events: res.data, pagination: res.pagination }),
     staleTime: 30_000,
   });
 }
@@ -32,7 +32,7 @@ export function useMyRegistrations(page = 1, limit = 20) {
   return useQuery({
     queryKey: eventKeys.myRegistrations(),
     queryFn: () => eventsService.getMyRegistrations(page, limit),
-    select: (res) => res.data,
+    select: (res) => ({ registrations: res.data, pagination: res.pagination }),
   });
 }
 
@@ -43,6 +43,7 @@ export function useRegisterForEvent() {
     onSuccess: (_, eventId) => {
       qc.invalidateQueries({ queryKey: eventKeys.detail(eventId) });
       qc.invalidateQueries({ queryKey: eventKeys.myRegistrations() });
+      qc.invalidateQueries({ queryKey: eventKeys.lists() });
       toast.success('Successfully registered!');
     },
     onError: (err: Error) => toast.error(err.message),

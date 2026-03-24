@@ -4,11 +4,12 @@ import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { useParams, Link } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
-import { useEvent, useRegisterForEvent, useCancelRegistration } from '@/hooks/useEvents';
+import { useEvent, useRegisterForEvent, useCancelRegistration, useMyRegistrations } from '@/hooks/useEvents';
 import { injectThemeVars, getTheme } from '@/lib/eventThemes';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Calendar, MapPin, Users, Tag, ArrowLeft, Globe, ExternalLink,
-  CheckCircle2, Clock, Share2,
+  CheckCircle2, Clock, Share2, QrCode,
 } from 'lucide-react';
 
 const EventDetailPage = () => {
@@ -17,10 +18,14 @@ const EventDetailPage = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data: event, isLoading } = useEvent(id!);
+  const { data: myRegsData } = useMyRegistrations();
   const registerMutation = useRegisterForEvent();
   const cancelMutation = useCancelRegistration();
 
   const theme = getTheme(event?.theme);
+
+  // Find this event's registration record
+  const myRegistration = (myRegsData?.registrations ?? []).find((r) => r.eventId === id);
 
   useEffect(() => {
     if (containerRef.current && event) {
@@ -53,14 +58,25 @@ const EventDetailPage = () => {
     );
   }
 
-  const isRegistered = event.registrationStatus === 'REGISTERED' || event.registrationStatus === 'ATTENDED';
-  const isWaitlisted = event.registrationStatus === 'WAITLISTED';
+  // Prefer backend registrationStatus, fall back to local registration record
+  const isRegistered =
+    event.registrationStatus === 'REGISTERED' || event.registrationStatus === 'ATTENDED' ||
+    (event.registrationStatus == null && (myRegistration?.status === 'REGISTERED' || myRegistration?.status === 'ATTENDED'));
+  const isWaitlisted =
+    event.registrationStatus === 'WAITLISTED' ||
+    (event.registrationStatus == null && myRegistration?.status === 'WAITLISTED');
+
   const isFull = (event.registeredCount ?? 0) >= event.capacity;
   const price = event.ticketPrice ? `₹${Number(event.ticketPrice).toLocaleString('en-IN')}` : 'Free';
   const spotsLeft = event.capacity - (event.registeredCount ?? 0);
   const organizerName = event.organizer?.profile
     ? `${event.organizer.profile.firstName} ${event.organizer.profile.lastName}`
     : event.organizer?.email ?? 'Organizer';
+
+  // QR value: use actual registration ID if available
+  const qrValue = myRegistration?.id
+    ? `founderkey://registration/${myRegistration.id}`
+    : `founderkey://event/${event.id}/user/${user?.id}`;
 
   const handleShare = () => {
     if (navigator.share) {
@@ -126,7 +142,7 @@ const EventDetailPage = () => {
                   </div>
                 )}
 
-                {event.locationType !== 'IN_PERSON' && event.meetingUrl && (
+                {event.locationType !== 'IN_PERSON' && event.meetingUrl && isRegistered && (
                   <div className="flex items-center gap-3 text-sm">
                     <Globe className="w-4 h-4 text-primary flex-shrink-0" />
                     <a href={event.meetingUrl} target="_blank" rel="noopener noreferrer"
@@ -168,9 +184,50 @@ const EventDetailPage = () => {
                 </div>
               </GlassCard>
             )}
+
+            {/* QR Ticket — only shown when registered */}
+            {isRegistered && (
+              <GlassCard>
+                <div className="flex items-center gap-2 mb-4">
+                  <QrCode className="w-4 h-4 text-primary" />
+                  <h2 className="font-display text-lg font-semibold text-foreground">Your Entry Ticket</h2>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  <div className="bg-white p-4 rounded-2xl flex-shrink-0">
+                    <QRCodeSVG
+                      value={qrValue}
+                      size={160}
+                      bgColor="#ffffff"
+                      fgColor="#0D0D0D"
+                      level="M"
+                    />
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="font-semibold">Registered</span>
+                    </div>
+                    <p className="text-foreground font-medium">{event.title}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {' · '}
+                      {new Date(event.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {myRegistration?.id && (
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        ID: {myRegistration.id.slice(0, 8)}…
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Present this QR code at the entrance for check-in.
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            )}
           </div>
 
-          {/* RIGHT: Sticky registration */}
+          {/* RIGHT: Sticky registration panel */}
           <div>
             <div className="lg:sticky lg:top-6 space-y-4">
               <GlassCard>

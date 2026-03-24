@@ -6,14 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
-import { useEvents } from '@/hooks/useEvents';
-import { useRegisterForEvent } from '@/hooks/useEvents';
+import { useEvents, useRegisterForEvent, useMyRegistrations } from '@/hooks/useEvents';
 import { getTheme } from '@/lib/eventThemes';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Event } from '@/services/events.service';
 import {
-  Calendar, Users, MapPin, QrCode, ChevronRight, CheckCircle2, X,
-  Clock, Tag, Ticket, Search, Filter,
+  Calendar, Users, MapPin, CheckCircle2, X,
+  Clock, Tag, Ticket, Search,
 } from 'lucide-react';
 
 const CATEGORIES = ['All', 'Tech', 'Business', 'Design', 'Health', 'Social', 'Arts', 'Sports', 'Food', 'Startup', 'AI'];
@@ -24,6 +23,7 @@ const EventsPage = () => {
   const [category, setCategory] = useState('All');
   const [registerModal, setRegisterModal] = useState<Event | null>(null);
   const [regStep, setRegStep] = useState<'confirm' | 'success'>('confirm');
+  const [registrationId, setRegistrationId] = useState<string | null>(null);
 
   const { data, isLoading } = useEvents({
     q: search || undefined,
@@ -32,17 +32,37 @@ const EventsPage = () => {
     limit: 50,
   });
 
+  const { data: myRegsData } = useMyRegistrations();
+
   const registerMutation = useRegisterForEvent();
   const events = data?.events ?? [];
 
+  // Build a set of registered event IDs from the user's registrations
+  const registeredEventIds = new Set(
+    (myRegsData?.registrations ?? [])
+      .filter((r) => r.status === 'REGISTERED' || r.status === 'ATTENDED' || r.status === 'WAITLISTED')
+      .map((r) => r.eventId)
+  );
+  const waitlistedEventIds = new Set(
+    (myRegsData?.registrations ?? [])
+      .filter((r) => r.status === 'WAITLISTED')
+      .map((r) => r.eventId)
+  );
+
   const handleRegister = async () => {
     if (!registerModal) return;
-    await registerMutation.mutateAsync(registerModal.id);
+    const res = await registerMutation.mutateAsync(registerModal.id);
+    const regId = (res as { data?: { registration?: { id?: string } } })?.data?.registration?.id ?? null;
+    setRegistrationId(regId);
     setRegStep('success');
   };
 
-  const openModal = (e: Event) => { setRegisterModal(e); setRegStep('confirm'); };
+  const openModal = (e: Event) => { setRegisterModal(e); setRegStep('confirm'); setRegistrationId(null); };
   const closeModal = () => setRegisterModal(null);
+
+  const qrValue = registrationId
+    ? `founderkey://registration/${registrationId}`
+    : `founderkey://event/${registerModal?.id}/user/${user?.id}`;
 
   return (
     <AppLayout>
@@ -105,8 +125,13 @@ const EventsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {events.map((e, i) => {
               const theme = getTheme(e.theme);
-              const isRegistered = e.registrationStatus === 'REGISTERED' || e.registrationStatus === 'ATTENDED';
-              const isWaitlisted = e.registrationStatus === 'WAITLISTED';
+              // Prefer backend registrationStatus, fall back to local registration data
+              const isRegistered =
+                e.registrationStatus === 'REGISTERED' || e.registrationStatus === 'ATTENDED' ||
+                (e.registrationStatus == null && registeredEventIds.has(e.id) && !waitlistedEventIds.has(e.id));
+              const isWaitlisted =
+                e.registrationStatus === 'WAITLISTED' ||
+                (e.registrationStatus == null && waitlistedEventIds.has(e.id));
               const price = e.ticketPrice ? `₹${Number(e.ticketPrice).toLocaleString('en-IN')}` : 'Free';
               const isFull = e.registeredCount !== undefined && e.registeredCount >= e.capacity;
 
@@ -164,7 +189,11 @@ const EventsPage = () => {
                         </div>
                         {isRegistered ? (
                           <Button variant="gold-ghost" size="sm" asChild>
-                            <Link to={`/event/${e.id}`}>View <ChevronRight className="w-3 h-3 ml-1" /></Link>
+                            <Link to={`/event/${e.id}`}>View Ticket</Link>
+                          </Button>
+                        ) : isWaitlisted ? (
+                          <Button variant="ghost" size="sm" disabled>
+                            <Clock className="w-3 h-3 mr-1" /> Waitlisted
                           </Button>
                         ) : (
                           <Button
@@ -240,15 +269,24 @@ const EventsPage = () => {
                         className="w-16 h-16 rounded-full gold-gradient-bg flex items-center justify-center mx-auto mb-4 gold-glow">
                         <CheckCircle2 className="w-8 h-8 text-primary-foreground" />
                       </motion.div>
-                      <h2 className="font-display text-2xl font-semibold text-foreground mb-2">You're registered!</h2>
-                      <p className="text-sm text-muted-foreground mb-5">Show your QR code at the gate.</p>
-                      <div className="bg-foreground p-4 rounded-2xl inline-block mb-5">
-                        <QRCodeSVG value={`founderkey://event/${registerModal.id}/user/${user?.id}`} size={140} bgColor="#E8E0D0" fgColor="#0D0D0D" />
+                      <h2 className="font-display text-2xl font-semibold text-foreground mb-1">You're registered!</h2>
+                      <p className="text-sm text-muted-foreground mb-4">Show your QR code at the gate.</p>
+                      <div className="bg-white p-4 rounded-2xl inline-block mb-5">
+                        <QRCodeSVG
+                          value={qrValue}
+                          size={140}
+                          bgColor="#ffffff"
+                          fgColor="#0D0D0D"
+                          level="M"
+                        />
                       </div>
+                      <p className="text-[10px] text-muted-foreground mb-5">
+                        Registration ID: {registrationId ?? 'saved'}
+                      </p>
                       <div className="flex gap-2">
                         <Button variant="gold-ghost" className="flex-1" onClick={closeModal}>Close</Button>
                         <Button variant="gold" className="flex-1" asChild>
-                          <Link to={`/event/${registerModal.id}`}>View Event</Link>
+                          <Link to={`/event/${registerModal.id}`}>View Ticket</Link>
                         </Button>
                       </div>
                     </motion.div>

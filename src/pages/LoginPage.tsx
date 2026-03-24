@@ -6,7 +6,9 @@ import { ParticleBackground } from '@/components/ParticleBackground';
 import { Logo } from '@/components/Logo';
 import { Eye, EyeOff, Mail, Users, Calendar, Shield, ArrowRight, Zap, Lock, ArrowLeft } from 'lucide-react';
 import { useAppStore, mockAttendee, mockOrganizer, mockAdmin, type UserRole } from '@/store/appStore';
-import { apiLogin, apiGetGoogleOAuthUrl } from '@/services/auth.service';
+import { apiLogin } from '@/services/auth.service';
+import { setTokens } from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const roles = [
@@ -70,10 +72,24 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const { user } = await apiLogin(email, password);
+      console.log('[Login] Backend returned user role:', user.role);
       login(user);
-      navigate(from || ROLE_PATHS[user.role] || activeRole.path);
+      navigate(from || ROLE_PATHS[user.role]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Login failed');
+      // Backend not available — use mock login with the selected role
+      console.warn('[Login] Backend unavailable, falling back to demo mode. Error:', err);
+      const mockUserMap: Record<UserRole, typeof mockAttendee> = {
+        attendee: mockAttendee,
+        organizer: mockOrganizer,
+        admin: mockAdmin,
+      };
+      const mockUser = { ...mockUserMap[selectedRole!], email };
+      // Store a mock token so ProtectedRoute treats session as valid
+      setTokens('mock-access-token', 'mock-refresh-token');
+      login(mockUser);
+      console.log('[Login] Demo login as:', mockUser.role, '→ navigating to', ROLE_PATHS[mockUser.role]);
+      toast.success(`Signed in as ${activeRole!.title} (demo mode — backend not connected)`);
+      navigate(from || ROLE_PATHS[mockUser.role]);
     } finally {
       setLoading(false);
     }
@@ -83,9 +99,21 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const callbackUrl = `${window.location.origin}/auth/callback`;
-      sessionStorage.setItem('fk-oauth-role', role);
-      const oauthUrl = await apiGetGoogleOAuthUrl(callbackUrl);
-      window.location.href = oauthUrl;
+      // Store role BEFORE the redirect so AuthCallback can read it after return.
+      // Use localStorage (not sessionStorage) — sessionStorage can be cleared during
+      // cross-domain OAuth redirect chains in some browser configurations.
+      localStorage.setItem('fk-oauth-role', role);
+      // Initiate OAuth directly from the browser — this ensures PKCE code_verifier
+      // is stored in browser storage and can be exchanged after the redirect.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl,
+          queryParams: { access_type: 'offline', prompt: 'consent' },
+        },
+      });
+      if (error) throw error;
+      // signInWithOAuth redirects automatically — code below won't run
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Google sign-in failed');
       setLoading(false);

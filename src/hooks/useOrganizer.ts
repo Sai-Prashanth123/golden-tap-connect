@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { organizerService, CreateEventPayload } from '@/services/organizer.service';
+import type { Event, Pagination } from '@/services/events.service';
+import type { Guest, AttendeeItem } from '@/services/organizer.service';
 import { toast } from 'sonner';
 
 export const orgKeys = {
@@ -8,6 +10,7 @@ export const orgKeys = {
   guests: (id: string) => ['organizer', 'guests', id] as const,
   analytics: (id: string) => ['organizer', 'analytics', id] as const,
   leads: (params?: object) => ['organizer', 'leads', params] as const,
+  attendees: (params?: object) => ['organizer', 'attendees', params] as const,
 };
 
 export function useOrgDashboard() {
@@ -22,7 +25,11 @@ export function useMyOrgEvents(page = 1, limit = 20) {
   return useQuery({
     queryKey: orgKeys.events(),
     queryFn: () => organizerService.getMyEvents(page, limit),
-    select: (res) => res.data,
+    // sendPaginated returns { data: [...events...], pagination: {...} }
+    select: (res) => ({
+      events: res.data as (Event & { registeredCount: number })[],
+      pagination: res.pagination as Pagination,
+    }),
   });
 }
 
@@ -30,7 +37,11 @@ export function useEventGuests(eventId: string, params = {}) {
   return useQuery({
     queryKey: orgKeys.guests(eventId),
     queryFn: () => organizerService.getEventGuests(eventId, params),
-    select: (res) => res.data,
+    // sendPaginated returns { data: [...guests...], pagination: {...} }
+    select: (res) => ({
+      guests: res.data as Guest[],
+      pagination: res.pagination as Pagination,
+    }),
     enabled: !!eventId,
   });
 }
@@ -44,12 +55,24 @@ export function useEventAnalytics(eventId: string) {
   });
 }
 
+export function useOrgAttendees(params: { eventId?: string; search?: string; page?: number; limit?: number } = {}) {
+  return useQuery({
+    queryKey: orgKeys.attendees(params),
+    queryFn: () => organizerService.getAttendees(params),
+    select: (res) => ({
+      attendees: res.data as AttendeeItem[],
+      pagination: res.pagination as Pagination,
+    }),
+  });
+}
+
 export function useCreateEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateEventPayload) => organizerService.createEvent(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orgKeys.events() });
+      qc.invalidateQueries({ queryKey: orgKeys.dashboard() });
       toast.success('Event created!');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -63,6 +86,7 @@ export function useUpdateEvent() {
       organizerService.updateEvent(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orgKeys.events() });
+      qc.invalidateQueries({ queryKey: orgKeys.dashboard() });
       toast.success('Event updated!');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -75,6 +99,7 @@ export function usePublishEvent() {
     mutationFn: (id: string) => organizerService.publishEvent(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orgKeys.events() });
+      qc.invalidateQueries({ queryKey: orgKeys.dashboard() });
       toast.success('Event published!');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -87,6 +112,7 @@ export function useDeleteEvent() {
     mutationFn: (id: string) => organizerService.deleteEvent(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orgKeys.events() });
+      qc.invalidateQueries({ queryKey: orgKeys.dashboard() });
       toast.success('Event deleted');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -109,7 +135,7 @@ export function useSendBlast(eventId: string) {
   return useMutation({
     mutationFn: (payload: { subject: string; body: string; audience: 'all' | 'registered' | 'waitlist' }) =>
       organizerService.sendEventBlast(eventId, payload),
-    onSuccess: (res) => toast.success(`Blast sent to ${res.data.sent} recipients`),
+    onSuccess: (res) => toast.success(`Blast sent to ${(res as { data: { sent: number } }).data?.sent ?? 0} recipients`),
     onError: (err: Error) => toast.error(err.message),
   });
 }
