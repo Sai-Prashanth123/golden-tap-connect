@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
 import { useEvents, useRegisterForEvent, useMyRegistrations } from '@/hooks/useEvents';
 import { getTheme } from '@/lib/eventThemes';
+import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Event } from '@/services/events.service';
 import {
@@ -132,7 +133,7 @@ const EventsPage = () => {
               const isWaitlisted =
                 e.registrationStatus === 'WAITLISTED' ||
                 (e.registrationStatus == null && waitlistedEventIds.has(e.id));
-              const price = e.ticketPrice ? `₹${Number(e.ticketPrice).toLocaleString('en-IN')}` : 'Free';
+              const { topLabel: price } = getRegistrationPricing(e);
               const isFull = e.registeredCount !== undefined && e.registeredCount >= e.capacity;
 
               return (
@@ -242,7 +243,7 @@ const EventsPage = () => {
                         {[
                           { icon: Calendar, text: new Date(registerModal.startDate).toLocaleString() },
                           { icon: MapPin, text: registerModal.locationType === 'VIRTUAL' ? 'Online' : (registerModal.city || registerModal.address || 'Venue TBD') },
-                          { icon: Tag, text: `Price: ${registerModal.ticketPrice ? `₹${Number(registerModal.ticketPrice).toLocaleString('en-IN')}` : 'Free'}` },
+                          { icon: Tag, text: `Price: ${getRegistrationPricing(registerModal).topLabel}` },
                           { icon: Users, text: `${registerModal.registeredCount ?? 0} of ${registerModal.capacity} registered` },
                         ].map(({ icon: Icon, text }, i) => (
                           <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">

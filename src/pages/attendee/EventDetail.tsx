@@ -6,6 +6,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
 import { useEvent, useRegisterForEvent, useCancelRegistration, useMyRegistrations } from '@/hooks/useEvents';
 import { injectThemeVars, getTheme } from '@/lib/eventThemes';
+import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Calendar, MapPin, Users, Tag, ArrowLeft, Globe, ExternalLink,
@@ -67,7 +68,7 @@ const EventDetailPage = () => {
     (event.registrationStatus == null && myRegistration?.status === 'WAITLISTED');
 
   const isFull = (event.registeredCount ?? 0) >= event.capacity;
-  const price = event.ticketPrice ? `₹${Number(event.ticketPrice).toLocaleString('en-IN')}` : 'Free';
+  const { topLabel: price, tiers, isMultiTier } = getRegistrationPricing(event);
   const spotsLeft = event.capacity - (event.registeredCount ?? 0);
   const organizerName = event.organizer?.profile
     ? `${event.organizer.profile.firstName} ${event.organizer.profile.lastName}`
@@ -233,8 +234,19 @@ const EventDetailPage = () => {
               <GlassCard>
                 <div className="text-center mb-4">
                   <p className="font-display text-3xl font-bold text-foreground mb-0.5">{price}</p>
-                  <p className="text-xs text-muted-foreground">per person</p>
+                  <p className="text-xs text-muted-foreground">{isMultiTier ? 'starting from' : 'per person'}</p>
                 </div>
+
+                {tiers.length > 0 && (
+                  <div className="mb-4 space-y-1">
+                    {tiers.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between text-[12px] text-muted-foreground">
+                        <span className="font-medium">{t.name}</span>
+                        <span className="font-semibold text-foreground">{t.priceLabel}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm">

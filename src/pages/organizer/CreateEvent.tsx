@@ -47,7 +47,7 @@ const DEFAULT_TICKET_TYPES: TicketType[] = [
     id: 'premium',
     name: 'Premium',
     price: 5000,
-    count: 50,
+    count: 10,
     benefits: ['VIP seating', 'Networking dinner', 'Speaker meet & greet', 'Swag bag'],
     color: 'gold',
     isEnabled: true,
@@ -56,7 +56,7 @@ const DEFAULT_TICKET_TYPES: TicketType[] = [
     id: 'silver',
     name: 'Silver',
     price: 2000,
-    count: 150,
+    count: 30,
     benefits: ['Reserved seating', 'Lunch included', 'Networking session'],
     color: 'silver',
     isEnabled: true,
@@ -65,7 +65,7 @@ const DEFAULT_TICKET_TYPES: TicketType[] = [
     id: 'basic',
     name: 'Basic',
     price: 500,
-    count: 300,
+    count: 60,
     benefits: ['General admission', 'Coffee breaks'],
     color: 'blue',
     isEnabled: true,
@@ -161,6 +161,26 @@ const CreateEventPage = () => {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const allocateTicketSeats = (totalCapacity: number) => {
+    const cap = Math.max(0, Math.floor(totalCapacity));
+    const premiumCount = Math.floor(cap * 0.1);
+    const silverCount = Math.floor(cap * 0.3);
+    // Ensure all enabled tiers can never exceed the total due to rounding.
+    const basicCount = Math.max(0, cap - premiumCount - silverCount);
+
+    const counts: Record<string, number> = {
+      premium: premiumCount,
+      silver: silverCount,
+      basic: basicCount,
+    };
+
+    // Preserve user edits (benefits/price/isEnabled) and only auto-update seat counts.
+    return form.ticketTypes.map((t) => ({
+      ...t,
+      count: counts[t.id] ?? t.count,
+    }));
+  };
+
   const toISO = (date: string, time: string) =>
     date ? new Date(`${date}T${time}:00`).toISOString() : '';
 
@@ -197,7 +217,13 @@ const CreateEventPage = () => {
   // ── Ticket type helpers ───────────────────────────────────────────────────
 
   const updateTicket = (id: string, patch: Partial<TicketType>) =>
-    set('ticketTypes', form.ticketTypes.map((t) => t.id === id ? { ...t, ...patch } : t));
+    // Functional update avoids stale `form` values during rapid typing.
+    setForm((prev) => ({
+      ...prev,
+      ticketTypes: prev.ticketTypes.map((t) =>
+        t.id === id ? { ...t, ...patch } : t
+      ),
+    }));
 
   const addBenefit = (id: string) =>
     updateTicket(id, { benefits: [...(form.ticketTypes.find((t) => t.id === id)?.benefits ?? []), ''] });
@@ -217,12 +243,10 @@ const CreateEventPage = () => {
   const remainingCapacity = form.capacity - usedCapacity;
   const totalCapacity = form.capacity;
 
+  // Allow manual entry of seat counts even if the total exceeds capacity.
+  // We block "Next" separately when `usedCapacity > form.capacity`.
   const handleTicketCountChange = (id: string, newCount: number) => {
-    const otherUsed = form.ticketTypes
-      .filter((t) => t.id !== id && t.isEnabled)
-      .reduce((s, t) => s + t.count, 0);
-    const maxAllowed = Math.max(0, form.capacity - otherUsed);
-    updateTicket(id, { count: Math.max(0, Math.min(newCount, maxAllowed)) });
+    updateTicket(id, { count: Math.max(0, newCount) });
   };
 
   // ── Submit ────────────────────────────────────────────────────────────────
@@ -288,6 +312,17 @@ const CreateEventPage = () => {
       const start = new Date(`${form.startDate}T${form.startTime}:00`);
       const end   = new Date(`${form.endDate}T${form.endTime}:00`);
       return end > start && start > new Date();
+    }
+    if (step === 4) {
+      // Capacity must be valid for both single and multi-tier modes.
+      if (form.capacity < 1) return false;
+      if (form.useTicketTypes) {
+        const usedCapacity = form.ticketTypes
+          .filter((t) => t.isEnabled)
+          .reduce((s, t) => s + t.count, 0);
+        return usedCapacity <= form.capacity;
+      }
+      return true;
     }
     return true;
   };
@@ -416,7 +451,7 @@ const CreateEventPage = () => {
                   <div>
                     <label className="text-sm font-medium text-foreground block mb-1.5">Event Type</label>
                     <div className="flex gap-2">
-                      {(['IN_PERSON', 'VIRTUAL', 'HYBRID'] as const).map((type) => (
+                      {(['IN_PERSON'] as const).map((type) => (
                         <button
                           key={type}
                           onClick={() => set('locationType', type)}
@@ -424,7 +459,7 @@ const CreateEventPage = () => {
                             form.locationType === type ? 'gold-gradient-bg text-primary-foreground border-transparent' : 'border-border text-muted-foreground hover:text-foreground'
                           }`}
                         >
-                          {type === 'IN_PERSON' ? '📍 In Person' : type === 'VIRTUAL' ? '💻 Virtual' : '🔀 Hybrid'}
+                          📍 In Person
                         </button>
                       ))}
                     </div>
@@ -552,21 +587,14 @@ const CreateEventPage = () => {
                     </label>
                     <Input
                       type="number"
-                      min={1}
-                      value={form.capacity}
+                      min={0}
+                      value={form.capacity === 0 ? '' : form.capacity}
                       onChange={(e) => {
-                        const cap = parseInt(e.target.value) || 1;
+                        const raw = e.target.value;
+                        const cap = raw === '' ? 0 : (Number.isFinite(Number.parseInt(raw, 10)) ? Number.parseInt(raw, 10) : 0);
                         set('capacity', cap);
-                        // Clamp existing ticket counts if new total is lower
-                        if (form.useTicketTypes) {
-                          let remaining = cap;
-                          set('ticketTypes', form.ticketTypes.map((t) => {
-                            if (!t.isEnabled) return t;
-                            const clamped = Math.min(t.count, remaining);
-                            remaining -= clamped;
-                            return { ...t, count: clamped };
-                          }));
-                        }
+                        // Auto-allocate seats based on total capacity (10/30/60).
+                        if (form.useTicketTypes) set('ticketTypes', allocateTicketSeats(cap));
                       }}
                       placeholder="100"
                     />
@@ -582,7 +610,11 @@ const CreateEventPage = () => {
                       ].map(({ value, label }) => (
                         <button
                           key={String(value)}
-                          onClick={() => set('useTicketTypes', value)}
+                          onClick={() => {
+                            set('useTicketTypes', value);
+                            // When entering multi-tier mode, auto-allocate seats by capacity.
+                            if (value) set('ticketTypes', allocateTicketSeats(form.capacity));
+                          }}
                           className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${
                             form.useTicketTypes === value
                               ? 'gold-gradient-bg text-primary-foreground shadow'
@@ -688,24 +720,40 @@ const CreateEventPage = () => {
                               <div>
                                 <label className="text-[11px] text-muted-foreground block mb-1">Price (₹)</label>
                                 <Input
-                                  type="number"
-                                  min={0}
-                                  value={ticket.price}
-                                  onChange={(e) => updateTicket(ticket.id, { price: Number(e.target.value) })}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={ticket.price === 0 ? '' : String(ticket.price)}
+                                  onChange={(e) => {
+                                    // Avoid <input type="number"> spinner/quirks while typing.
+                                    const raw = e.target.value;
+                                    if (raw === '') {
+                                      updateTicket(ticket.id, { price: 0 });
+                                      return;
+                                    }
+
+                                    // Keep digits only (prevents accidental locale/comma issues).
+                                    const digitsOnly = raw.replace(/[^\d]/g, '');
+                                    const nextPrice = digitsOnly === '' ? 0 : parseInt(digitsOnly, 10);
+                                    updateTicket(ticket.id, { price: nextPrice });
+                                  }}
                                   className="h-8 text-sm"
                                   placeholder="0 = free"
                                 />
                               </div>
                               <div>
                                 <label className="text-[11px] text-muted-foreground block mb-1">
-                                  Seats <span className="text-muted-foreground/60">(max {maxForThisTier.toLocaleString()})</span>
+                                  Seats
                                 </label>
                                 <Input
                                   type="number"
                                   min={0}
-                                  max={maxForThisTier}
-                                  value={ticket.count}
-                                  onChange={(e) => handleTicketCountChange(ticket.id, parseInt(e.target.value) || 0)}
+                                    value={ticket.count === 0 ? '' : ticket.count}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const nextCount =
+                                        raw === '' ? 0 : (Number.isFinite(Number.parseInt(raw, 10)) ? Number.parseInt(raw, 10) : 0);
+                                      handleTicketCountChange(ticket.id, nextCount);
+                                    }}
                                   className={`h-8 text-sm ${ticket.isEnabled && ticket.count > maxForThisTier ? 'border-red-400 focus:ring-red-400' : ''}`}
                                 />
                                 {ticket.isEnabled && ticket.count === maxForThisTier && maxForThisTier > 0 && (

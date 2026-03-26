@@ -10,6 +10,11 @@ import { apiLogin } from '@/services/auth.service';
 import { setTokens } from '@/services/api';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import {
+  getLoginReturnPathname,
+  safePublicEventReturnPath,
+  setPostAuthReturnPath,
+} from '@/lib/loginReturnPath';
 
 const roles = [
   {
@@ -54,27 +59,31 @@ const ROLE_PATHS: Record<UserRole, string> = {
 };
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const rawFrom = getLoginReturnPathname(location.state);
+  const returnPath = safePublicEventReturnPath(rawFrom);
+  const isEventRegisterFlow = Boolean(returnPath);
+
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const effectiveRole = selectedRole ?? (isEventRegisterFlow ? 'attendee' : null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const login = useAppStore((s) => s.login);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
 
-  const activeRole = roles.find((r) => r.value === selectedRole);
+  const activeRole = roles.find((r) => r.value === effectiveRole);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeRole || !email || !password) return;
+    if (!activeRole || !effectiveRole || !email || !password) return;
     setLoading(true);
     try {
       const { user } = await apiLogin(email, password);
       console.log('[Login] Backend returned user role:', user.role);
       login(user);
-      navigate(from || ROLE_PATHS[user.role]);
+      navigate(returnPath ?? ROLE_PATHS[user.role]);
     } catch (err) {
       // Backend not available — use mock login with the selected role
       console.warn('[Login] Backend unavailable, falling back to demo mode. Error:', err);
@@ -83,26 +92,27 @@ const LoginPage = () => {
         organizer: mockOrganizer,
         admin: mockAdmin,
       };
-      const mockUser = { ...mockUserMap[selectedRole!], email };
+      const mockUser = { ...mockUserMap[effectiveRole], email };
       // Store a mock token so ProtectedRoute treats session as valid
       setTokens('mock-access-token', 'mock-refresh-token');
       login(mockUser);
       console.log('[Login] Demo login as:', mockUser.role, '→ navigating to', ROLE_PATHS[mockUser.role]);
       toast.success(`Signed in as ${activeRole!.title} (demo mode — backend not connected)`);
-      navigate(from || ROLE_PATHS[mockUser.role]);
+      navigate(returnPath ?? ROLE_PATHS[mockUser.role]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async (role: UserRole = selectedRole ?? 'attendee') => {
+  const handleGoogleLogin = async (role: UserRole = effectiveRole ?? 'attendee') => {
     setLoading(true);
     try {
       const callbackUrl = `${window.location.origin}/auth/callback`;
+      if (returnPath) setPostAuthReturnPath(returnPath);
       // Store role BEFORE the redirect so AuthCallback can read it after return.
       // Use localStorage (not sessionStorage) — sessionStorage can be cleared during
       // cross-domain OAuth redirect chains in some browser configurations.
-      localStorage.setItem('fk-oauth-role', role);
+      localStorage.setItem('fk-oauth-role', isEventRegisterFlow ? 'attendee' : role);
       // Initiate OAuth directly from the browser — this ensures PKCE code_verifier
       // is stored in browser storage and can be exchanged after the redirect.
       const { error } = await supabase.auth.signInWithOAuth({
@@ -161,7 +171,7 @@ const LoginPage = () => {
           className="absolute top-6 left-6"
         >
           <Link
-            to="/"
+            to={returnPath ?? '/'}
             className="group inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <motion.span
@@ -171,7 +181,7 @@ const LoginPage = () => {
             >
               <ArrowLeft className="w-4 h-4" />
             </motion.span>
-            <span className="hidden sm:inline">Back to home</span>
+            <span className="hidden sm:inline">{returnPath ? 'Back to event' : 'Back to home'}</span>
           </Link>
         </motion.div>
 
@@ -181,7 +191,7 @@ const LoginPage = () => {
           </div>
 
           <AnimatePresence mode="wait">
-            {!selectedRole ? (
+            {!effectiveRole ? (
               <motion.div
                 key="role-selector"
                 initial={{ opacity: 0, y: 20 }}
@@ -254,7 +264,10 @@ const LoginPage = () => {
                 {/* Back button + role badge */}
                 <div className="flex items-center gap-3 mb-6">
                   <button
-                    onClick={() => setSelectedRole(null)}
+                    type="button"
+                    onClick={() =>
+                      isEventRegisterFlow && returnPath ? navigate(returnPath) : setSelectedRole(null)
+                    }
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                   >
                     ← Back
@@ -361,10 +374,12 @@ const LoginPage = () => {
                   </Button>
                 </form>
 
-                <p className="text-sm text-muted-foreground mt-6 text-center">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-primary hover:underline">Sign up</Link>
-                </p>
+                {!isEventRegisterFlow && (
+                  <p className="text-sm text-muted-foreground mt-6 text-center">
+                    Don&apos;t have an account?{' '}
+                    <Link to="/register" className="text-primary hover:underline">Sign up</Link>
+                  </p>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

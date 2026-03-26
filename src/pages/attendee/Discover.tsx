@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEvents } from '@/hooks/useEvents';
 import { getTheme } from '@/lib/eventThemes';
+import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { Calendar, MapPin, Users, Tag, Search, Sparkles } from 'lucide-react';
 
 const CATEGORIES = [
@@ -107,7 +108,7 @@ const DiscoverPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {events.map((e, i) => {
                 const theme = getTheme(e.theme);
-                const price = e.ticketPrice ? `₹${Number(e.ticketPrice).toLocaleString('en-IN')}` : 'Free';
+                const { topLabel: price } = getRegistrationPricing(e);
                 return (
                   <motion.div key={e.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                     <Link to={`/event/${e.id}`}>

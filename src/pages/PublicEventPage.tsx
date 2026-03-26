@@ -7,6 +7,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
 import { injectThemeVars } from '@/lib/eventThemes';
+import { getRegistrationPricing } from '@/lib/ticketPricing';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
@@ -67,7 +68,7 @@ const PublicEventPage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <PublicNav />
+        <PublicNav eventId={id} />
         <main className="max-w-5xl mx-auto px-4 py-10">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 animate-pulse">
             <div className="md:col-span-2 space-y-4">
@@ -89,7 +90,7 @@ const PublicEventPage = () => {
   if (!event) {
     return (
       <div className="min-h-screen bg-background">
-        <PublicNav />
+        <PublicNav eventId={id} />
         <main className="max-w-5xl mx-auto px-4 py-20 text-center">
           <p className="text-muted-foreground text-lg mb-4">This event could not be found.</p>
           <Button variant="gold" asChild>
@@ -107,9 +108,7 @@ const PublicEventPage = () => {
   const isPast       = endDate < new Date();
   const isFull       = (event.registeredCount ?? 0) >= event.capacity;
   const spotsLeft    = event.capacity - (event.registeredCount ?? 0);
-  const price        = event.ticketPrice && Number(event.ticketPrice) > 0
-    ? `₹${Number(event.ticketPrice).toLocaleString('en-IN')}`
-    : 'Free';
+  const { topLabel: price, tiers } = getRegistrationPricing(event);
   const isRegistered =
     event.registrationStatus === 'REGISTERED' || event.registrationStatus === 'ATTENDED' ||
     (event.registrationStatus == null && (myRegistration?.status === 'REGISTERED' || myRegistration?.status === 'ATTENDED'));
@@ -134,7 +133,7 @@ const PublicEventPage = () => {
 
   return (
     <div className="min-h-screen bg-background" ref={containerRef}>
-      <PublicNav isAuthenticated={isAuthenticated} userRole={user?.role} />
+      <PublicNav isAuthenticated={isAuthenticated} userRole={user?.role} eventId={id} />
 
       <main className="max-w-5xl mx-auto px-4 py-8 md:py-12">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
@@ -257,6 +256,17 @@ const PublicEventPage = () => {
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registration</span>
                 <span className="font-display text-lg font-bold text-foreground">{price}</span>
               </div>
+
+              {tiers.length > 0 && (
+                <div className="mt-2 mb-3 space-y-1">
+                  {tiers.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between text-[12px] text-muted-foreground">
+                      <span className="font-medium">{t.name}</span>
+                      <span className="font-semibold text-foreground">{t.priceLabel}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Capacity bar */}
               <div className="mb-3">
@@ -390,10 +400,20 @@ const PublicEventPage = () => {
 
 // ── Minimal public navbar ────────────────────────────────────────────────────
 
-function PublicNav({ isAuthenticated, userRole }: { isAuthenticated?: boolean; userRole?: string }) {
+function PublicNav({
+  isAuthenticated,
+  userRole,
+  eventId,
+}: {
+  isAuthenticated?: boolean;
+  userRole?: string;
+  eventId?: string;
+}) {
   const dashPath = userRole === 'organizer' ? '/organizer/dashboard'
     : userRole === 'admin' ? '/admin/dashboard'
     : '/dashboard';
+
+  const loginState = eventId ? { from: { pathname: `/e/${eventId}` } } : undefined;
 
   return (
     <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
@@ -409,7 +429,7 @@ function PublicNav({ isAuthenticated, userRole }: { isAuthenticated?: boolean; u
           ) : (
             <>
               <Button variant="gold-ghost" size="sm" asChild>
-                <Link to="/login">Sign In</Link>
+                <Link to="/login" state={loginState}>Sign In</Link>
               </Button>
               <Button variant="gold" size="sm" asChild>
                 <Link to="/register">Sign Up</Link>

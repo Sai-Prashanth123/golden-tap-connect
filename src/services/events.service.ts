@@ -31,6 +31,13 @@ export interface Event {
   meetingUrl?: string;
   capacity: number;
   ticketPrice?: string | null;
+  ticketTypes?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    count: number;
+    isEnabled?: boolean;
+  }>;
   coverImage?: string | null;
   tags: string[];
   status: 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED';

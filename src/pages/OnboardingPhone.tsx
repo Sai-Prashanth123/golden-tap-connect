@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/appStore';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
+import { takePostAuthReturnPath } from '@/lib/loginReturnPath';
 
 const COUNTRY_CODES = [
   { code: '+91',  flag: '🇮🇳', name: 'India' },
@@ -43,7 +44,7 @@ const OnboardingPhone = () => {
 
   if (!user) { navigate('/login'); return null; }
 
-  const destination  = ROLE_PATHS[user.role] ?? '/dashboard';
+  const defaultDestination = ROLE_PATHS[user.role] ?? '/dashboard';
   const fullPhone    = `${countryCode}${phone.replace(/\s/g, '')}`;
   const firstName    = user.name.split(' ')[0] || 'there';
   const otpValue     = otp.join('');
@@ -99,7 +100,7 @@ const OnboardingPhone = () => {
 
     updateUser({ phone: savedPhone });
     toast.success('Phone verified!');
-    navigate(destination);
+    navigate(takePostAuthReturnPath() ?? defaultDestination);
     setLoading(false);
   };
 
@@ -150,7 +151,7 @@ const OnboardingPhone = () => {
     otpRefs.current[0]?.focus();
   };
 
-  const handleSkip = () => navigate(destination);
+  const handleSkip = () => navigate(takePostAuthReturnPath() ?? defaultDestination);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (

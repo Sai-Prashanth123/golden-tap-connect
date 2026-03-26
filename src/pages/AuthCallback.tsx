@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { apiGoogleVerify } from '@/services/auth.service';
 import { useAppStore } from '@/store/appStore';
 import type { UserRole } from '@/store/appStore';
+import { takePostAuthReturnPath } from '@/lib/loginReturnPath';
 
 const ROLE_PATHS: Record<UserRole, string> = {
   attendee: '/dashboard',
@@ -40,7 +41,8 @@ const AuthCallback = () => {
         if (!user.phone) {
           navigate('/onboarding/phone');
         } else {
-          navigate(ROLE_PATHS[user.role] ?? '/dashboard');
+          const returnTo = takePostAuthReturnPath();
+          navigate(returnTo ?? ROLE_PATHS[user.role] ?? '/dashboard');
         }
       } catch (err) {
         console.error('[AuthCallback] Google verify failed:', err);
